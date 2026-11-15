@@ -3,24 +3,35 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 import { resolveDbUrl } from "./url";
 
-const globalForDb = globalThis as unknown as { pool?: Pool };
-
-function makePool() {
+function makeDb() {
   const r = resolveDbUrl("pooled");
   if (!r) throw new Error("DATABASE_URL nao configurada");
-  const { url, local } = r;
-  return new Pool({
-    connectionString: url,
-    max: local ? 10 : 5,
-    ssl: local ? undefined : { rejectUnauthorized: false },
+  const pool = new Pool({
+    connectionString: r.url,
+    max: r.local ? 10 : 5,
+    ssl: r.local ? undefined : { rejectUnauthorized: false },
     idleTimeoutMillis: 10_000,
   });
+  return drizzle(pool, { schema });
 }
 
-const pool = globalForDb.pool ?? makePool();
-if (process.env.NODE_ENV !== "production") globalForDb.pool = pool;
+type Database = ReturnType<typeof makeDb>;
+const g = globalThis as unknown as { __fxDb?: Database };
 
-export const db = drizzle(pool, { schema });
-export type DB = typeof db;
+function getDb(): Database {
+  if (!g.__fxDb) g.__fxDb = makeDb();
+  return g.__fxDb;
+}
+
+/** Conexao criada sob demanda (o build nao precisa do banco). */
+export const db = new Proxy({} as Database, {
+  get(_t, prop) {
+    const real = getDb();
+    const v = Reflect.get(real, prop, real);
+    return typeof v === "function" ? v.bind(real) : v;
+  },
+});
+
+export type DB = Database;
 export type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 export * from "./schema";
