@@ -3,7 +3,7 @@ import { jwtVerify, SignJWT } from "jose";
 export const SESSION_COOKIE = "fx_session";
 export const SESSION_DAYS = 30;
 
-export type SessionPayload = { sub: string; role: "ADMIN" | "SUPPLIER" | "RESELLER" };
+export type SessionPayload = { sub: string; role: "ADMIN" | "SUPPLIER" | "RESELLER"; v?: number };
 
 function secret() {
   const s = process.env.AUTH_SECRET;
@@ -12,7 +12,7 @@ function secret() {
 }
 
 export async function signSession(payload: SessionPayload) {
-  return new SignJWT({ role: payload.role })
+  return new SignJWT({ role: payload.role, v: payload.v ?? 1 })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
     .setIssuedAt()
@@ -25,7 +25,7 @@ export async function verifySession(token: string | undefined): Promise<SessionP
   try {
     const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
     if (!payload.sub || typeof payload.role !== "string") return null;
-    return { sub: payload.sub, role: payload.role as SessionPayload["role"] };
+    return { sub: payload.sub, role: payload.role as SessionPayload["role"], v: typeof payload.v === "number" ? payload.v : 1 };
   } catch {
     return null;
   }

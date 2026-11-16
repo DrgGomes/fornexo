@@ -1,3 +1,4 @@
+import { attachDatabasePool } from "@vercel/functions";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
@@ -11,7 +12,11 @@ function makeDb() {
     max: r.local ? 10 : 5,
     ssl: r.local ? undefined : { rejectUnauthorized: false },
     idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
   });
+  // Em funcoes Fluid da Vercel, fecha conexoes ociosas com seguranca antes de suspender
+  if (process.env.VERCEL) attachDatabasePool(pool);
   return drizzle(pool, { schema });
 }
 

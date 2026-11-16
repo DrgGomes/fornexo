@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SmartImg } from "@/components/ui/smart-img";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ImagePlus, Plus, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -276,7 +277,7 @@ export function ProductForm({
                   {p.images.map((src, i) => (
                     <div key={src} className="group relative aspect-square overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="size-full object-cover" />
+                      <SmartImg src={src} size={160} className="size-full object-cover" />
                       {i === 0 && <span className="absolute top-1.5 left-1.5 rounded-md bg-zinc-900/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">Capa</span>}
                       <div className="absolute inset-x-0 bottom-0 flex justify-between bg-gradient-to-t from-black/60 to-transparent p-1.5">
                         <div className="flex gap-1">

@@ -89,7 +89,7 @@ export async function saveProduct(payload: ProductPayload) {
         titleMl: d.titleMl || null,
         description: d.description,
         images,
-        videoUrl: d.videoUrl || null,
+        videoUrl: d.videoUrl && /^https?:\/\//i.test(d.videoUrl.trim()) ? d.videoUrl.trim() : null,
         price: d.price,
         suggestedPrice: d.suggestedPrice || null,
         costPrice: d.costPrice ?? null,

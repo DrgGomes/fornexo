@@ -132,9 +132,21 @@ export const users = pgTable(
       .unique()
       .references(() => resellers.id, { onDelete: "cascade" }),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    sessionVersion: integer("session_version").notNull().default(1),
     createdAt: createdAt(),
   },
   (t) => [index("users_supplier_idx").on(t.supplierId)],
+);
+
+/** Registro de tentativas para limitar forca bruta (login, cadastro). */
+export const authAttempts = pgTable(
+  "auth_attempts",
+  {
+    id: id(),
+    key: text("key").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("auth_attempts_key_idx").on(t.key, t.createdAt)],
 );
 
 export const feeProfiles = pgTable(

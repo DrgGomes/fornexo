@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Bell, Ellipsis, ExternalLink, LogOut, X } from "lucide-react";
@@ -48,7 +49,7 @@ export function AppShell({
     <div className="flex min-w-0 items-center gap-2.5">
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt={brandName} className="size-8 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200" />
+        <SmartImg src={logoUrl} alt={brandName} size={32} eager className="size-8 shrink-0 rounded-lg object-cover ring-1 ring-zinc-200" />
       ) : (
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-brand-fg">
           {brandName.slice(0, 1).toUpperCase()}

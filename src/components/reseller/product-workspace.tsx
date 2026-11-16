@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { useRef, useState } from "react";
 import { Download, FileArchive, MessageCircle, Package, Share2, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -142,7 +143,7 @@ export function ProductWorkspace({
                 <div key={i} className="relative size-full shrink-0 snap-center bg-zinc-100">
                   {src && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={src} alt={`${p.name} ${i + 1}`} className="size-full object-cover" loading={i === 0 ? "eager" : "lazy"} />
+                    <SmartImg src={src} alt={`${p.name} ${i + 1}`} size={560} eager={i === 0} className="size-full object-cover" />
                   )}
                 </div>
               ))}
@@ -166,7 +167,7 @@ export function ProductWorkspace({
               {p.images.map((src, i) => (
                 <button key={src} onClick={() => goTo(i)} className={cn("size-16 shrink-0 overflow-hidden rounded-xl ring-2 transition", i === active ? "ring-brand" : "ring-transparent opacity-70")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="size-full object-cover" loading="lazy" />
+                  <SmartImg src={src} size={64} className="size-full object-cover" />
                 </button>
               ))}
             </div>

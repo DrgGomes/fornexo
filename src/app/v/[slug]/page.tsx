@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { and, count, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { Lock, Package, ScanBarcode, Store, Truck } from "lucide-react";
@@ -22,7 +23,7 @@ export default async function ShowcasePage({ params, searchParams }: { params: P
     <section className="relative overflow-hidden">
       {s.bannerUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={s.bannerUrl} alt="" className="absolute inset-0 size-full object-cover" />
+        <SmartImg src={s.bannerUrl} size={960} height={420} eager className="absolute inset-0 size-full object-cover" />
       ) : (
         <div className="absolute inset-0 bg-[radial-gradient(70%_80%_at_80%_0%,var(--brand),transparent)] opacity-20" />
       )}
@@ -99,7 +100,7 @@ export default async function ShowcasePage({ params, searchParams }: { params: P
               <div className="aspect-square overflow-hidden bg-zinc-100">
                 {p.image && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.image} alt={p.name} loading="lazy" className="size-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                  <SmartImg src={p.image} alt={p.name} size={280} className="size-full object-cover transition duration-300 group-hover:scale-[1.03]" />
                 )}
               </div>
               <div className="p-3">

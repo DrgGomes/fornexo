@@ -9,6 +9,7 @@ import { DEFAULT_FEE_PROFILES, TRIAL_DAYS } from "@/lib/constants";
 import { notify } from "@/lib/notify";
 import { homeFor } from "@/lib/session-token";
 import { slugify } from "@/lib/utils";
+import { attemptsSince, clearAttempts, clientIp, recordAttempt } from "@/lib/rate-limit";
 import { seedDemo } from "@/lib/seed";
 
 export type FormState = { error?: string; ok?: boolean; message?: string } | undefined;
@@ -22,12 +23,22 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
     password: form.get("password"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const ip = await clientIp();
+  const emailKey = `login:${parsed.data.email}`;
+  const ipKey = `login-ip:${ip}`;
+  const [byEmail, byIp] = await Promise.all([attemptsSince(emailKey, 15), attemptsSince(ipKey, 15)]);
+  if (byEmail >= 8 || byIp >= 40) return { error: "Muitas tentativas. Aguarde 15 minutos e tente novamente." };
   const user = await db.query.users.findFirst({ where: eq(users.email, parsed.data.email) });
-  if (!user || !(await checkPassword(parsed.data.password, user.passwordHash))) return { error: "E-mail ou senha incorretos." };
+  if (!user || !(await checkPassword(parsed.data.password, user.passwordHash))) {
+    await recordAttempt(emailKey, ipKey);
+    return { error: "E-mail ou senha incorretos." };
+  }
   if (!user.active) return { error: "Usuário desativado. Fale com o responsável pela conta." };
+  await clearAttempts(emailKey);
   await startSession(user);
   const next = String(form.get("next") || "");
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : homeFor(user.role));
+  const safe = /^\/(?![\/\\])/.test(next) ? next : null;
+  redirect(safe ?? homeFor(user.role));
 }
 
 export async function logoutAction() {
@@ -58,8 +69,11 @@ export async function signupSupplierAction(_: FormState, form: FormData): Promis
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
+  const ipKey = `signup:${await clientIp()}`;
+  if ((await attemptsSince(ipKey, 60)) >= 10) return { error: "Muitos cadastros a partir desta conexão. Tente mais tarde." };
   const exists = await db.query.users.findFirst({ where: eq(users.email, d.email), columns: { id: true } });
   if (exists) return { error: "Já existe uma conta com este e-mail." };
+  await recordAttempt(ipKey);
   const slug = await uniqueSlug(d.company);
   const passwordHash = await hashPassword(d.password);
   const user = await db.transaction(async (tx) => {
@@ -99,6 +113,9 @@ export async function signupResellerAction(_: FormState, form: FormData): Promis
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
+  const ipKey = `signup:${await clientIp()}`;
+  if ((await attemptsSince(ipKey, 60)) >= 10) return { error: "Muitos cadastros a partir desta conexão. Tente mais tarde." };
+  await recordAttempt(ipKey);
   const supplier = await db.query.suppliers.findFirst({ where: eq(suppliers.slug, d.slug) });
   if (!supplier || !supplierAccess(supplier).ok) return { error: "Fornecedor indisponível no momento." };
   const exists = await db.query.users.findFirst({ where: eq(users.email, d.email), columns: { id: true } });

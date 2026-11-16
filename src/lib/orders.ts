@@ -1,5 +1,5 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { orderEvents, orderItems, orders, products, suppliers, variants, type OrderStatus, type Tx } from "@/db";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { orderEvents, orderItems, orders, products, suppliers, transactions, variants, type OrderStatus, type Tx } from "@/db";
 import { AppError } from "./action";
 import { ORDER_STATUS } from "./constants";
 import { orderCode } from "./format";
@@ -122,11 +122,32 @@ async function restock(tx: Tx, orderId: string) {
 
 type OrderRow = typeof orders.$inferSelect;
 
-export async function cancelOrderTx(tx: Tx, order: OrderRow, opts: { reason: string; actorName: string; bySupplier: boolean }) {
-  if (order.status === "CANCELED") throw new AppError("Pedido já está cancelado.");
-  if (order.status === "SHIPPED" || order.status === "DELIVERED") throw new AppError("Pedido já enviado. Use devolução.");
+export async function cancelOrderTx(tx: Tx, order: OrderRow, opts: { reason: string; actorName: string; bySupplier: boolean; allowedFrom?: OrderStatus[] }) {
+  const allowed: OrderStatus[] = opts.allowedFrom ?? ["AWAITING_PAYMENT", "CONFIRMED", "PICKING", "PICKED", "PACKED"];
+  // UPDATE condicional: so um cancelamento vence, mesmo com cliques simultaneos
+  const [prev] = await tx
+    .update(orders)
+    .set({ status: "CANCELED", canceledAt: new Date(), cancelReason: opts.reason || null, paid: false })
+    .where(and(eq(orders.id, order.id), inArray(orders.status, allowed)))
+    .returning({ id: orders.id });
+  if (!prev) {
+    const cur = await tx.query.orders.findFirst({ where: eq(orders.id, order.id), columns: { status: true } });
+    if (cur?.status === "CANCELED") throw new AppError("Pedido já está cancelado.");
+    if (cur?.status === "SHIPPED" || cur?.status === "DELIVERED") throw new AppError("Pedido já enviado. Use devolução.");
+    throw new AppError("O pedido mudou de status e não pode mais ser cancelado por aqui.");
+  }
+  // estado anterior confiavel: lido dentro da transacao, antes do update (linha ja travada)
   await restock(tx, order.id);
-  if (order.paid) {
+  const wasPaid = await tx.query.transactions.findFirst({
+    where: and(eq(transactions.orderId, order.id), eq(transactions.type, "ORDER_PAYMENT")),
+    columns: { id: true },
+  });
+  const alreadyRefunded = await tx.query.transactions.findFirst({
+    where: and(eq(transactions.orderId, order.id), eq(transactions.type, "REFUND")),
+    columns: { id: true },
+  });
+  const refund = !!wasPaid && !alreadyRefunded;
+  if (refund) {
     await applyWallet(tx, {
       supplierId: order.supplierId,
       resellerId: order.resellerId,
@@ -137,14 +158,10 @@ export async function cancelOrderTx(tx: Tx, order: OrderRow, opts: { reason: str
       createdBy: opts.actorName,
     });
   }
-  await tx
-    .update(orders)
-    .set({ status: "CANCELED", canceledAt: new Date(), cancelReason: opts.reason || null, paid: false })
-    .where(eq(orders.id, order.id));
   await tx.insert(orderEvents).values({
     orderId: order.id,
     status: "CANCELED",
-    message: `Pedido cancelado${opts.reason ? `: ${opts.reason}` : ""}${order.paid ? ". Valor estornado para o saldo." : ""}`,
+    message: `Pedido cancelado${opts.reason ? `: ${opts.reason}` : ""}${refund ? ". Valor estornado para o saldo." : ""}`,
     actorName: opts.actorName,
   });
   await notify(
@@ -154,7 +171,7 @@ export async function cancelOrderTx(tx: Tx, order: OrderRow, opts: { reason: str
           resellerId: order.resellerId,
           toSupplier: false,
           title: `Pedido #${orderCode(order.number)} cancelado`,
-          body: opts.reason || (order.paid ? "Valor estornado para seu saldo" : undefined),
+          body: opts.reason || (refund ? "Valor estornado para seu saldo" : undefined),
           href: `/r/pedidos/${order.id}`,
         }
       : {
@@ -174,10 +191,12 @@ export async function setOrderStatusTx(tx: Tx, order: OrderRow, to: OrderStatus,
   if (order.status === "CANCELED") throw new AppError("Pedido cancelado não pode mudar de status.");
   if (!order.paid) throw new AppError("Pedido aguardando pagamento. Marque como pago antes de avançar.");
   if (order.status === to) return { changed: false };
-  await tx
+  const [upd] = await tx
     .update(orders)
     .set({ status: to, shippedAt: to === "SHIPPED" ? new Date() : order.shippedAt })
-    .where(eq(orders.id, order.id));
+    .where(and(eq(orders.id, order.id), ne(orders.status, "CANCELED"), eq(orders.paid, true)))
+    .returning({ id: orders.id });
+  if (!upd) throw new AppError("O pedido foi cancelado ou não está pago.");
   await tx.insert(orderEvents).values({ orderId: order.id, status: to, message: ORDER_STATUS[to].label, actorName });
   await notify(
     {
@@ -195,9 +214,12 @@ export async function setOrderStatusTx(tx: Tx, order: OrderRow, to: OrderStatus,
 
 /** Marca como pago sem debitar saldo (pagamento recebido por fora). */
 export async function markPaidManuallyTx(tx: Tx, order: OrderRow, actorName: string) {
-  if (order.paid) throw new AppError("Pedido já está pago.");
-  if (order.status === "CANCELED") throw new AppError("Pedido cancelado.");
-  await tx.update(orders).set({ paid: true, paidAt: new Date(), status: "CONFIRMED" }).where(eq(orders.id, order.id));
+  const [upd] = await tx
+    .update(orders)
+    .set({ paid: true, paidAt: new Date(), status: "CONFIRMED" })
+    .where(and(eq(orders.id, order.id), eq(orders.paid, false), ne(orders.status, "CANCELED")))
+    .returning({ id: orders.id });
+  if (!upd) throw new AppError("Pedido já está pago ou foi cancelado.");
   await tx.insert(orderEvents).values({ orderId: order.id, status: "CONFIRMED", message: "Pagamento confirmado manualmente pelo fornecedor", actorName });
   await notify(
     {

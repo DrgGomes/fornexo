@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { db, resellers } from "@/db";
 import { getCurrentUser } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,16 @@ export async function GET(req: Request) {
     select 1 from variants v join products p on p.id = v.product_id where p.supplier_id = ${supplierId} and v.image_url = ${u}
     limit 1`);
   if (!found.rows.length) return new Response("Imagem não pertence ao catálogo", { status: 403 });
-  const res = await fetch(u, { redirect: "follow" });
+  let res: Response;
+  try {
+    res = await safeFetch(u);
+  } catch {
+    return new Response("Endereço de imagem não permitido", { status: 400 });
+  }
   if (!res.ok || !res.body) return new Response("Falha ao baixar imagem", { status: 502 });
   const type = res.headers.get("content-type") ?? "image/jpeg";
-  if (!type.startsWith("image/")) return new Response("Arquivo não é imagem", { status: 415 });
-  return new Response(res.body, { headers: { "Content-Type": type, "Cache-Control": "private, max-age=3600" } });
+  if (!type.startsWith("image/") || type.includes("svg")) return new Response("Arquivo não é imagem", { status: 415 });
+  const len = Number(res.headers.get("content-length") ?? 0);
+  if (len > 25 * 1024 * 1024) return new Response("Imagem grande demais", { status: 413 });
+  return new Response(res.body, { headers: { "Content-Type": type, "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff" } });
 }

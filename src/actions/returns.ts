@@ -71,11 +71,12 @@ export async function reviewReturn(id: string, decision: "APPROVED" | "REJECTED"
   return run(async () => {
     const { supplier, user } = await requireSupplier();
     const r = await ownedReturn(id, supplier.id);
-    if (r.status !== "REQUESTED") fail("Esta devolução já foi analisada.");
-    await db
+    const upd = await db
       .update(returns)
       .set({ status: decision, supplierNote: note.slice(0, 2000) || null, resolvedAt: decision === "REJECTED" ? new Date() : null })
-      .where(eq(returns.id, r.id));
+      .where(and(eq(returns.id, r.id), eq(returns.status, "REQUESTED")))
+      .returning({ id: returns.id });
+    if (!upd.length) fail("Esta devolução já foi analisada.");
     await db.insert(orderEvents).values({ orderId: r.orderId, message: decision === "APPROVED" ? "Devolução aprovada" : "Devolução recusada", actorName: user.name });
     await notify({
       supplierId: supplier.id,
@@ -92,13 +93,21 @@ export async function completeReturn(id: string, input: { refundAmount: number; 
   return run(async () => {
     const { supplier, user } = await requireSupplier();
     const r = await ownedReturn(id, supplier.id);
-    if (r.status !== "APPROVED" && r.status !== "REQUESTED") fail("Esta devolução não pode ser concluída.");
-    const refund = z.number().int().min(0).max(r.order.total).parse(input.refundAmount);
+    const refund = z.number().int().min(0).parse(input.refundAmount);
     await db.transaction(async (tx) => {
-      await tx
+      // nunca estornar mais do que o pedido custou, somando devolucoes anteriores
+      const [prev] = await tx
+        .select({ total: sql<number>`coalesce(sum(${returns.refundAmount}),0)::int` })
+        .from(returns)
+        .where(and(eq(returns.orderId, r.orderId), eq(returns.status, "COMPLETED")));
+      const available = r.order.total - Number(prev.total);
+      if (refund > available) fail(`O estorno máximo para este pedido é ${brl(Math.max(0, available))}.`);
+      const upd = await tx
         .update(returns)
         .set({ status: "COMPLETED", refundAmount: refund, resolvedAt: new Date(), supplierNote: input.note.slice(0, 2000) || r.supplierNote })
-        .where(eq(returns.id, r.id));
+        .where(and(eq(returns.id, r.id), inArray(returns.status, ["REQUESTED", "APPROVED"])))
+        .returning({ id: returns.id });
+      if (!upd.length) fail("Esta devolução já foi concluída ou recusada.");
       if (refund > 0) {
         await applyWallet(tx, {
           supplierId: supplier.id,

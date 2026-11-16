@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { notFound } from "next/navigation";
 import { buttonClass } from "@/components/ui/button";
 import { getShowcaseSupplier } from "@/lib/showcase";
@@ -29,7 +30,7 @@ export default async function ShowcaseLayout({ children, params }: { children: R
           <Link href={`/v/${s.slug}`} className="flex min-w-0 items-center gap-2.5">
             {s.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.logoUrl} alt={s.name} className="size-9 rounded-xl object-cover ring-1 ring-zinc-200" />
+              <SmartImg src={s.logoUrl} alt={s.name} size={36} eager className="size-9 rounded-xl object-cover ring-1 ring-zinc-200" />
             ) : (
               <span className="flex size-9 items-center justify-center rounded-xl bg-brand font-bold text-brand-fg">{s.name[0]}</span>
             )}

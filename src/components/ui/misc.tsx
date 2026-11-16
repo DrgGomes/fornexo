@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ORDER_STATUS, RETURN_STATUS } from "@/lib/constants";
 import type { OrderStatus, ReturnStatus } from "@/db/schema";
@@ -116,7 +117,7 @@ export function ReturnStatusBadge({ status }: { status: ReturnStatus }) {
 export function Avatar({ name, src, size = 36, className }: { name: string; src?: string | null; size?: number; className?: string }) {
   if (src)
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={name} width={size} height={size} className={cn("shrink-0 rounded-full object-cover", className)} style={{ width: size, height: size }} />;
+    return <SmartImg src={src} alt={name} size={size} className={cn("shrink-0 rounded-full object-cover", className)} />;
   return (
     <span
       className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-zinc-100 font-semibold text-zinc-600", className)}
@@ -178,7 +179,7 @@ export function ProductThumb({ src, alt, size = 48, className }: { src?: string 
     <div className={cn("shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200/60", className)} style={{ width: size, height: size }}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" aria-label={alt} loading="lazy" className="size-full object-cover" />
+        <SmartImg src={src} alt={alt} size={size} className="size-full object-cover" />
       ) : null}
     </div>
   );

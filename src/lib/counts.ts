@@ -1,34 +1,35 @@
 import "server-only";
-import { and, count, eq, isNull, sql } from "drizzle-orm";
-import { db, deposits, messages, notifications, orders, posts, resellers, returns } from "@/db";
+import { sql } from "drizzle-orm";
+import { cache } from "react";
+import { db } from "@/db";
 
-export async function supplierCounts(supplierId: string) {
-  const [toProcess, pendingDeposits, pendingReturns, unreadMsgs, pendingResellers, unread] = await Promise.all([
-    db.select({ n: count() }).from(orders).where(and(eq(orders.supplierId, supplierId), sql`${orders.status} in ('CONFIRMED','PICKING','PICKED','PACKED')`)),
-    db.select({ n: count() }).from(deposits).where(and(eq(deposits.supplierId, supplierId), eq(deposits.status, "PENDING"))),
-    db.select({ n: count() }).from(returns).where(and(eq(returns.supplierId, supplierId), eq(returns.status, "REQUESTED"))),
-    db.select({ n: count() }).from(messages).where(and(eq(messages.supplierId, supplierId), eq(messages.fromSupplier, false), isNull(messages.readAt))),
-    db.select({ n: count() }).from(resellers).where(and(eq(resellers.supplierId, supplierId), eq(resellers.status, "PENDING"))),
-    db.select({ n: count() }).from(notifications).where(and(eq(notifications.supplierId, supplierId), eq(notifications.toSupplier, true), isNull(notifications.readAt))),
-  ]);
+/** Todas as contagens do menu do fornecedor em uma unica ida ao banco. */
+export const supplierCounts = cache(async (supplierId: string) => {
+  const r = await db.execute<Record<string, string>>(sql`
+    select
+      (select count(*) from orders where supplier_id = ${supplierId} and status in ('CONFIRMED','PICKING','PICKED','PACKED')) as to_process,
+      (select count(*) from deposits where supplier_id = ${supplierId} and status = 'PENDING') as pending_deposits,
+      (select count(*) from returns where supplier_id = ${supplierId} and status = 'REQUESTED') as pending_returns,
+      (select count(*) from messages where supplier_id = ${supplierId} and from_supplier = false and read_at is null) as unread_msgs,
+      (select count(*) from resellers where supplier_id = ${supplierId} and status = 'PENDING') as pending_resellers,
+      (select count(*) from notifications where supplier_id = ${supplierId} and to_supplier = true and read_at is null) as unread`);
+  const x = r.rows[0];
   return {
-    toProcess: toProcess[0].n,
-    pendingDeposits: pendingDeposits[0].n,
-    pendingReturns: pendingReturns[0].n,
-    unreadMsgs: unreadMsgs[0].n,
-    pendingResellers: pendingResellers[0].n,
-    unread: unread[0].n,
+    toProcess: Number(x.to_process),
+    pendingDeposits: Number(x.pending_deposits),
+    pendingReturns: Number(x.pending_returns),
+    unreadMsgs: Number(x.unread_msgs),
+    pendingResellers: Number(x.pending_resellers),
+    unread: Number(x.unread),
   };
-}
+});
 
 export async function resellerCounts(resellerId: string, supplierId: string, newsSeenAt: Date | null) {
-  const [unreadMsgs, unread, news] = await Promise.all([
-    db.select({ n: count() }).from(messages).where(and(eq(messages.resellerId, resellerId), eq(messages.fromSupplier, true), isNull(messages.readAt))),
-    db.select({ n: count() }).from(notifications).where(and(eq(notifications.resellerId, resellerId), eq(notifications.toSupplier, false), isNull(notifications.readAt))),
-    db
-      .select({ n: count() })
-      .from(posts)
-      .where(and(eq(posts.supplierId, supplierId), eq(posts.published, true), newsSeenAt ? sql`${posts.createdAt} > ${newsSeenAt}` : sql`true`)),
-  ]);
-  return { unreadMsgs: unreadMsgs[0].n, unread: unread[0].n, news: news[0].n };
+  const r = await db.execute<Record<string, string>>(sql`
+    select
+      (select count(*) from messages where reseller_id = ${resellerId} and from_supplier = true and read_at is null) as unread_msgs,
+      (select count(*) from notifications where reseller_id = ${resellerId} and to_supplier = false and read_at is null) as unread,
+      (select count(*) from posts where supplier_id = ${supplierId} and published = true ${newsSeenAt ? sql`and created_at > ${newsSeenAt}` : sql``}) as news`);
+  const x = r.rows[0];
+  return { unreadMsgs: Number(x.unread_msgs), unread: Number(x.unread), news: Number(x.news) };
 }

@@ -10,6 +10,8 @@ export async function saveUpload(file: File, opts: { supplierId: string; ownerRe
   if (file.size > MAX_UPLOAD_BYTES) throw new AppError("Arquivo maior que 4 MB.");
   const type = file.type || "application/octet-stream";
   if (!ACCEPTED_UPLOAD.includes(type)) throw new AppError("Envie PDF, PNG, JPG ou WEBP.");
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (!matchesSignature(type, head)) throw new AppError("O conteúdo do arquivo não corresponde ao tipo informado.");
   const safeName = (file.name || "arquivo").replace(/[^\w.\-]+/g, "_").slice(-80);
   let url: string | null = null;
   let data: Buffer | null = null;
@@ -37,4 +39,21 @@ export async function readFileBytes(f: { url: string | null; data: Buffer | null
     return Buffer.from(await res.arrayBuffer());
   }
   throw new Error("Arquivo vazio");
+}
+
+/** Confere a assinatura binaria (magic bytes) para impedir arquivos disfarcados. */
+function matchesSignature(type: string, b: Uint8Array) {
+  const starts = (...sig: number[]) => sig.every((v, i) => b[i] === v);
+  switch (type) {
+    case "application/pdf":
+      return starts(0x25, 0x50, 0x44, 0x46); // %PDF
+    case "image/png":
+      return starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+    case "image/jpeg":
+      return starts(0xff, 0xd8, 0xff);
+    case "image/webp":
+      return starts(0x52, 0x49, 0x46, 0x46) && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
+    default:
+      return false;
+  }
 }

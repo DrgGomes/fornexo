@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, ne, sql } from "drizzle-orm";
 import { orderEvents, orders, resellers, transactions, type Tx } from "@/db";
 import { orderCode } from "./format";
 import { notify } from "./notify";
@@ -42,36 +42,46 @@ export async function applyWallet(tx: Tx, t: TxInput) {
   return r.balance;
 }
 
-/** Tenta pagar um pedido com o saldo. Retorna true se pago. */
+/**
+ * Tenta pagar um pedido com o saldo. Retorna true se pago.
+ * Seguro contra cliques/requisicoes simultaneas: primeiro "reserva" o pedido (paid=false -> true)
+ * com UPDATE condicional; se o debito falhar, desfaz a reserva na mesma transacao.
+ */
 export async function tryPayOrder(
   tx: Tx,
-  order: { id: string; supplierId: string; resellerId: string; total: number; number: number; paid: boolean; status: string },
+  order: { id: string; supplierId: string; resellerId: string; total: number; number: number },
   actorName?: string,
 ) {
-  if (order.paid || order.status === "CANCELED") return false;
-  const conds = [eq(resellers.id, order.resellerId), gte(resellers.balance, order.total)];
+  const [claimed] = await tx
+    .update(orders)
+    .set({ paid: true, paidAt: new Date() })
+    .where(and(eq(orders.id, order.id), eq(orders.paid, false), ne(orders.status, "CANCELED")))
+    .returning({ status: orders.status, total: orders.total });
+  if (!claimed) return false;
+  const total = claimed.total;
   const [r] = await tx
     .update(resellers)
-    .set({ balance: sql`${resellers.balance} - ${order.total}` })
-    .where(and(...conds))
+    .set({ balance: sql`${resellers.balance} - ${total}` })
+    .where(and(eq(resellers.id, order.resellerId), gte(resellers.balance, total)))
     .returning({ balance: resellers.balance });
-  if (!r) return false;
+  if (!r) {
+    await tx.update(orders).set({ paid: false, paidAt: null }).where(eq(orders.id, order.id));
+    return false;
+  }
   await tx.insert(transactions).values({
     supplierId: order.supplierId,
     resellerId: order.resellerId,
     type: "ORDER_PAYMENT",
-    amount: -order.total,
+    amount: -total,
     balanceAfter: r.balance,
     description: `Pedido #${orderCode(order.number)}`,
     orderId: order.id,
   });
-  await tx
-    .update(orders)
-    .set({ paid: true, paidAt: new Date(), status: order.status === "AWAITING_PAYMENT" ? "CONFIRMED" : (order.status as never) })
-    .where(eq(orders.id, order.id));
+  const confirm = claimed.status === "AWAITING_PAYMENT";
+  if (confirm) await tx.update(orders).set({ status: "CONFIRMED" }).where(eq(orders.id, order.id));
   await tx.insert(orderEvents).values({
     orderId: order.id,
-    status: order.status === "AWAITING_PAYMENT" ? "CONFIRMED" : null,
+    status: confirm ? "CONFIRMED" : null,
     message: "Pagamento debitado do saldo. Pedido confirmado.",
     actorName: actorName ?? "Sistema",
   });

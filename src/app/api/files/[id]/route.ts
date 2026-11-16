@@ -22,8 +22,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     headers: {
       "Content-Type": f.mimeType,
       "Content-Length": String(bytes.length),
-      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${encodeURIComponent(f.name)}"`,
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(f.name)}`,
       "Cache-Control": "private, max-age=300",
+      "X-Content-Type-Options": "nosniff",
+      ...(f.mimeType.startsWith("image/") ? { "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" } : {}),
     },
   });
 }

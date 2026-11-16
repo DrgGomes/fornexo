@@ -122,7 +122,7 @@ export async function cancelOrderByReseller(orderId: string, reason: string) {
     const order = await db.query.orders.findFirst({ where: and(eq(orders.id, orderId), eq(orders.resellerId, reseller.id)) });
     if (!order) fail("Pedido não encontrado.");
     if (!["AWAITING_PAYMENT", "CONFIRMED"].includes(order.status)) fail("O fornecedor já começou a separar este pedido. Fale com ele pelo chat.");
-    await db.transaction((tx) => cancelOrderTx(tx, order, { reason: reason.slice(0, 300), actorName: user.name, bySupplier: false }));
+    await db.transaction((tx) => cancelOrderTx(tx, order, { reason: reason.slice(0, 300), actorName: user.name, bySupplier: false, allowedFrom: ["AWAITING_PAYMENT", "CONFIRMED"] }));
   }, "Pedido cancelado");
 }
 

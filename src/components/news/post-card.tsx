@@ -1,4 +1,5 @@
 import { Pin } from "lucide-react";
+import { SmartImg } from "@/components/ui/smart-img";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
 
@@ -13,7 +14,7 @@ export function PostCard({
     <Card className="overflow-hidden">
       {post.coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.coverUrl} alt="" className="aspect-[2.4/1] w-full object-cover" />
+        <SmartImg src={post.coverUrl} size={700} height={292} className="aspect-[2.4/1] w-full object-cover" />
       )}
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">

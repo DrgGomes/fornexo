@@ -1,10 +1,10 @@
 "use server";
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, suppliers, users } from "@/db";
 import { fail, run } from "@/lib/action";
-import { checkPassword, getCurrentUser, hashPassword, requireSupplier } from "@/lib/auth";
+import { checkPassword, getCurrentUser, hashPassword, requireSupplier, startSession } from "@/lib/auth";
 import { normalizeImageUrl } from "@/lib/images";
 import { slugify } from "@/lib/utils";
 
@@ -68,7 +68,10 @@ export async function setTeamMemberActive(id: string, active: boolean) {
   return run(async () => {
     const { supplier, user } = await requireSupplier();
     if (id === user.id) fail("Você não pode desativar a si mesmo.");
-    await db.update(users).set({ active }).where(and(eq(users.id, id), eq(users.supplierId, supplier.id)));
+    await db
+      .update(users)
+      .set({ active, sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(and(eq(users.id, id), eq(users.supplierId, supplier.id)));
   }, active ? "Acesso reativado" : "Acesso desativado");
 }
 
@@ -78,8 +81,14 @@ export async function changePassword(current: string, next: string) {
     if (!user) fail("Sessão expirada.");
     if (!(await checkPassword(current, user.passwordHash))) fail("Senha atual incorreta.");
     if (next.length < 6) fail("A nova senha precisa de ao menos 6 caracteres.");
-    await db.update(users).set({ passwordHash: await hashPassword(next) }).where(eq(users.id, user.id));
-  }, "Senha alterada");
+    const [u] = await db
+      .update(users)
+      .set({ passwordHash: await hashPassword(next), sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(eq(users.id, user.id))
+      .returning();
+    // encerra sessoes em outros aparelhos e mantem esta ativa
+    await startSession(u);
+  }, "Senha alterada. Outros aparelhos foram desconectados.");
 }
 
 export async function updateProfile(input: { name: string; phone?: string }) {

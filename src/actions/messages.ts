@@ -3,7 +3,7 @@
 import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import { db, messages, orders, products, resellers } from "@/db";
 import { fail, run } from "@/lib/action";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireReseller, requireSupplier } from "@/lib/auth";
 
 export type ChatMessage = {
   id: string;
@@ -18,16 +18,16 @@ export type ChatMessage = {
 async function scope(resellerId?: string) {
   const user = await getCurrentUser();
   if (!user) fail("Sessão expirada.");
-  if (user.role === "SUPPLIER" && user.supplierId) {
+  if (user.role === "SUPPLIER") {
+    const { supplier, user: u } = await requireSupplier();
     if (!resellerId) fail("Conversa inválida.");
-    const r = await db.query.resellers.findFirst({ where: and(eq(resellers.id, resellerId), eq(resellers.supplierId, user.supplierId)) });
+    const r = await db.query.resellers.findFirst({ where: and(eq(resellers.id, resellerId), eq(resellers.supplierId, supplier.id)) });
     if (!r) fail("Revendedor não encontrado.");
-    return { user, supplierId: user.supplierId, resellerId: r.id, fromSupplier: true };
+    return { user: u, supplierId: supplier.id, resellerId: r.id, fromSupplier: true };
   }
-  if (user.role === "RESELLER" && user.resellerId) {
-    const r = await db.query.resellers.findFirst({ where: eq(resellers.id, user.resellerId) });
-    if (!r || r.status !== "ACTIVE") fail("Acesso indisponível.");
-    return { user, supplierId: r.supplierId, resellerId: r.id, fromSupplier: false };
+  if (user.role === "RESELLER") {
+    const { reseller, user: u } = await requireReseller();
+    return { user: u, supplierId: reseller.supplierId, resellerId: reseller.id, fromSupplier: false };
   }
   fail("Sem permissão.");
 }

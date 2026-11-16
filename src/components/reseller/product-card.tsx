@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { Badge } from "@/components/ui/badge";
 import { brl } from "@/lib/format";
 import { FavoriteButton } from "./favorite-button";
@@ -22,7 +23,7 @@ export function ProductCard({ p, href }: { p: CatalogItem; href: string }) {
       <div className="relative aspect-square overflow-hidden bg-zinc-100">
         {p.image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.image} alt={p.name} loading="lazy" className="size-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+          <SmartImg src={p.image} alt={p.name} size={260} className="size-full object-cover transition duration-300 group-hover:scale-[1.03]" />
         )}
         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
           {p.isNew && <Badge tone="blue">Novo</Badge>}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SmartImg } from "@/components/ui/smart-img";
 import { and, asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
@@ -37,7 +38,7 @@ export default async function ShowcaseProduct({ params }: { params: Promise<{ sl
           <div className="no-scrollbar flex aspect-square snap-x snap-mandatory overflow-x-auto rounded-3xl bg-zinc-100">
             {p.images.map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={src} src={src} alt={`${p.name} ${i + 1}`} className="size-full shrink-0 snap-center object-cover" />
+              <SmartImg key={src} src={src} alt={`${p.name} ${i + 1}`} size={600} eager={i === 0} className="size-full shrink-0 snap-center object-cover" />
             ))}
           </div>
           {p.images.length > 1 && <p className="mt-2 text-center text-xs text-zinc-400">Deslize para ver {p.images.length} fotos</p>}

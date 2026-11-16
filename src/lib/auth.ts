@@ -15,8 +15,8 @@ export async function checkPassword(pw: string, hash: string) {
   return bcrypt.compare(pw, hash);
 }
 
-export async function startSession(user: { id: string; role: SessionPayload["role"] }) {
-  const token = await signSession({ sub: user.id, role: user.role });
+export async function startSession(user: { id: string; role: SessionPayload["role"]; sessionVersion?: number }) {
+  const token = await signSession({ sub: user.id, role: user.role, v: user.sessionVersion ?? 1 });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -33,17 +33,25 @@ export async function endSession() {
   jar.delete(SESSION_COOKIE);
 }
 
-export const getCurrentUser = cache(async () => {
+const getSession = cache(async () => {
   const jar = await cookies();
-  const payload = await verifySession(jar.get(SESSION_COOKIE)?.value);
-  if (!payload) return null;
-  const user = await db.query.users.findFirst({ where: eq(users.id, payload.sub) });
-  if (!user || !user.active) return null;
-  return user;
+  return verifySession(jar.get(SESSION_COOKIE)?.value);
 });
 
+type UserRow = typeof users.$inferSelect;
 export type SupplierRow = typeof suppliers.$inferSelect;
 export type ResellerRow = typeof resellers.$inferSelect;
+
+function validUser(u: UserRow | null | undefined, payload: SessionPayload): u is UserRow {
+  return !!u && u.active && u.sessionVersion === (payload.v ?? 1);
+}
+
+export const getCurrentUser = cache(async () => {
+  const payload = await getSession();
+  if (!payload) return null;
+  const user = await db.query.users.findFirst({ where: eq(users.id, payload.sub) });
+  return validUser(user, payload) ? user : null;
+});
 
 export function supplierAccess(s: SupplierRow): { ok: boolean; reason?: string; daysLeft?: number } {
   const now = Date.now();
@@ -72,24 +80,35 @@ export const requireAdmin = cache(async () => {
   return user;
 });
 
+/** Usuario + fornecedor em uma unica consulta. */
 export const requireSupplier = cache(async () => {
-  const user = await requireUser();
-  if (user.role !== "SUPPLIER" || !user.supplierId) redirect("/entrar");
-  const supplier = await db.query.suppliers.findFirst({ where: eq(suppliers.id, user.supplierId) });
-  if (!supplier) redirect("/entrar");
-  const access = supplierAccess(supplier);
+  const payload = await getSession();
+  if (!payload || payload.role !== "SUPPLIER") redirect("/entrar");
+  const [row] = await db
+    .select({ user: users, supplier: suppliers })
+    .from(users)
+    .innerJoin(suppliers, eq(suppliers.id, users.supplierId))
+    .where(eq(users.id, payload.sub))
+    .limit(1);
+  if (!row || !validUser(row.user, payload) || row.user.role !== "SUPPLIER") redirect("/entrar");
+  const access = supplierAccess(row.supplier);
   if (!access.ok) redirect("/bloqueado");
-  return { user, supplier, access };
+  return { user: row.user, supplier: row.supplier, access };
 });
 
+/** Usuario + revendedor + fornecedor em uma unica consulta. */
 export const requireReseller = cache(async () => {
-  const user = await requireUser();
-  if (user.role !== "RESELLER" || !user.resellerId) redirect("/entrar");
-  const reseller = await db.query.resellers.findFirst({ where: eq(resellers.id, user.resellerId) });
-  if (!reseller) redirect("/entrar");
-  if (reseller.status !== "ACTIVE") redirect("/aguardando");
-  const supplier = await db.query.suppliers.findFirst({ where: eq(suppliers.id, reseller.supplierId) });
-  if (!supplier) redirect("/entrar");
-  if (!supplierAccess(supplier).ok) redirect("/bloqueado");
-  return { user, reseller, supplier };
+  const payload = await getSession();
+  if (!payload || payload.role !== "RESELLER") redirect("/entrar");
+  const [row] = await db
+    .select({ user: users, reseller: resellers, supplier: suppliers })
+    .from(users)
+    .innerJoin(resellers, eq(resellers.id, users.resellerId))
+    .innerJoin(suppliers, eq(suppliers.id, resellers.supplierId))
+    .where(eq(users.id, payload.sub))
+    .limit(1);
+  if (!row || !validUser(row.user, payload) || row.user.role !== "RESELLER") redirect("/entrar");
+  if (row.reseller.status !== "ACTIVE") redirect("/aguardando");
+  if (!supplierAccess(row.supplier).ok) redirect("/bloqueado");
+  return { user: row.user, reseller: row.reseller, supplier: row.supplier };
 });
