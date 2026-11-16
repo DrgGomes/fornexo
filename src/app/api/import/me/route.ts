@@ -7,7 +7,11 @@ export function OPTIONS() {
 }
 
 export async function GET(req: Request) {
-  const r = await supplierFromToken(req);
-  if (r.error) return r.error;
-  return json({ ok: true, supplier: r.supplier.name });
+  try {
+    const r = await supplierFromToken(req);
+    if (r.error) return r.error;
+    return json({ ok: true, supplier: r.supplier.name });
+  } catch {
+    return json({ error: "O sistema não respondeu. Tente de novo em alguns segundos." }, 500);
+  }
 }

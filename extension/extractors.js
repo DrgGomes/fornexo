@@ -429,6 +429,18 @@
     };
   }
 
+  /* URL sem parametros de rastreio (TikTok/Shopee chegam a milhares de caracteres) */
+  function cleanUrl() {
+    var keep = ["goods_id", "item_id", "shop_id", "product_id", "id"];
+    var q = new URLSearchParams();
+    keep.forEach(function (k) {
+      var v = new URLSearchParams(location.search).get(k);
+      if (v) q.set(k, v);
+    });
+    var qs = q.toString();
+    return (location.origin + location.pathname + (qs ? "?" + qs : "")).slice(0, 1900);
+  }
+
   function detect() {
     var h = location.hostname;
     var p = location.pathname + location.search;
@@ -455,8 +467,10 @@
     data.title = (data.title || "").replace(/\s+/g, " ").trim().slice(0, 300);
     data.description = (data.description || "").trim().slice(0, 30000);
     data.price = data.price != null ? String(data.price) : null;
-    data.url = location.href;
-    data.images = uniq((data.images || []).map(abs)).slice(0, 40);
+    data.url = cleanUrl();
+    data.images = uniq((data.images || []).map(abs)).filter(function (u) {
+      return u && u.length < 6000;
+    }).slice(0, 40);
     return data;
   }
 

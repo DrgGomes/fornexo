@@ -8,23 +8,31 @@ import { attemptsSince, recordAttempt } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const str = (max: number) => z.string().trim().max(max);
+/** Texto aparado e cortado no limite (nunca recusa a importacao por tamanho). */
+const str = (max: number) => z.string().transform((v) => v.trim().slice(0, max));
 
 const schema = z.object({
   source: z.enum(IMPORT_SOURCES),
-  url: z.string().trim().max(2000).refine((u) => /^https:\/\/[^\s]+$/i.test(u), "Endereço do anúncio inválido"),
-  title: str(300).min(2, "Título não encontrado no anúncio"),
+  // links do TikTok/Shopee trazem muitos parametros de rastreio: aceitamos longo e limpamos depois
+  url: z.string().trim().max(50000).refine((u) => /^https:\/\/[^\s]+$/i.test(u), "Endereço do anúncio inválido"),
+  title: str(300).refine((v) => v.length >= 2, "Título não encontrado no anúncio"),
   description: str(30000).optional().default(""),
-  price: z.union([z.number(), z.string().max(40)]).optional().nullable(),
-  images: z.array(z.string().max(2000)).max(60).default([]),
+  price: z.union([z.number(), z.string().transform((v) => v.slice(0, 40))]).optional().nullable(),
+  // fotos com link longo demais sao ignoradas (nao derrubam a importacao)
+  images: z.array(z.string()).max(200).default([]),
   attributes: z
-    .array(z.object({ name: str(120).min(1), value: str(500).min(1) }))
-    .max(80)
-    .default([]),
+    .array(z.object({ name: str(120), value: str(500) }))
+    .default([])
+    .transform((a) => a.filter((x) => x.name && x.value).slice(0, 80)),
   variations: z
-    .array(z.object({ name: str(60).min(1), values: z.array(str(120).min(1)).min(1).max(60) }))
-    .max(3)
-    .default([]),
+    .array(z.object({ name: str(60), values: z.array(str(120)) }))
+    .default([])
+    .transform((a) =>
+      a
+        .map((v) => ({ name: v.name, values: v.values.filter(Boolean).slice(0, 60) }))
+        .filter((v) => v.name && v.values.length)
+        .slice(0, 3),
+    ),
   brand: str(120).optional().nullable(),
   sku: str(120).optional().nullable(),
   gtin: str(40).optional().nullable(),
@@ -35,11 +43,20 @@ export function OPTIONS() {
 }
 
 export async function POST(req: Request) {
+  try {
+    return await handleImport(req);
+  } catch (e) {
+    console.error("[import] erro", e);
+    return json({ error: "O sistema não conseguiu salvar agora. Tente de novo em alguns segundos." }, 500);
+  }
+}
+
+async function handleImport(req: Request) {
   const r = await supplierFromToken(req);
   if (r.error) return r.error;
   const s = r.supplier;
 
-  if (Number(req.headers.get("content-length") ?? 0) > 600_000) return json({ error: "Anúncio grande demais." }, 413);
+  if (Number(req.headers.get("content-length") ?? 0) > 3_000_000) return json({ error: "Anúncio grande demais." }, 413);
   const key = `import:${s.id}`;
   if ((await attemptsSince(key, 60)) >= 300) return json({ error: "Limite de importações por hora atingido. Tente mais tarde." }, 429);
 
@@ -50,15 +67,20 @@ export async function POST(req: Request) {
     return json({ error: "Dados inválidos." }, 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos." }, 400);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    console.warn("[import] payload invalido", issue?.path?.join("."), issue?.code);
+    return json({ error: friendlyError(issue?.path?.[0]) }, 400);
+  }
   const d = parsed.data;
+  const sourceUrl = normalizeSourceUrl(d.url).slice(0, 2000);
 
-  const images = processImportImages(d.images);
+  const images = processImportImages(d.images.filter((u) => u.length <= 6000));
   if (!images.length) return json({ error: "Nenhuma foto encontrada. Role a página até as fotos carregarem e tente de novo." }, 400);
 
   const values = {
     source: d.source,
-    sourceUrl: normalizeSourceUrl(d.url),
+    sourceUrl,
     title: d.title,
     description: d.description ?? "",
     price: priceToCents(d.price ?? null),
@@ -106,4 +128,17 @@ function dedupeAttrs(list: { name: string; value: string }[]) {
     seen.add(k);
     return true;
   });
+}
+
+function friendlyError(field: unknown) {
+  switch (field) {
+    case "title":
+      return "Não encontrei o título do produto nesta página.";
+    case "url":
+      return "Endereço do anúncio inválido.";
+    case "source":
+      return "Site não suportado.";
+    default:
+      return "Alguns dados do anúncio vieram em formato inesperado. Recarregue a página e tente de novo.";
+  }
 }
