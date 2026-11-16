@@ -53,11 +53,14 @@ export default async function ResellersPage({ searchParams }: { searchParams: Pr
 
       <Card className="mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:p-5">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Link de cadastro de revendedores</p>
+          <p className="text-sm font-semibold">Link da sua página de cadastro</p>
           <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">{link}</p>
         </div>
         <div className="flex gap-2">
           <CopyButton text={link} label="Copiar link" />
+          <Link href="/f/minha-pagina" className="inline-flex h-8 items-center rounded-lg bg-white px-3 text-[13px] font-medium ring-1 ring-zinc-200 hover:bg-zinc-50">
+            Personalizar
+          </Link>
           <a
             href={`https://wa.me/?text=${encodeURIComponent(`Cadastre-se para revender nossos produtos: ${link}`)}`}
             target="_blank"

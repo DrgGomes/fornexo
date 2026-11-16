@@ -31,6 +31,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
       label: "Revendedores",
       items: [
         { href: "/f/revendedores", label: "Revendedores", icon: "resellers", badge: c.pendingResellers },
+        { href: "/f/minha-pagina", label: "Minha página", icon: "landing" },
         { href: "/f/financeiro", label: "Financeiro", icon: "finance", badge: c.pendingDeposits },
         { href: "/f/devolucoes", label: "Devoluções", icon: "returns", badge: c.pendingReturns },
         { href: "/f/mensagens", label: "Mensagens", icon: "messages", badge: c.unreadMsgs },

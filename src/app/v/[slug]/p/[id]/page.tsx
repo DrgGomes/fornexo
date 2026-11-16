@@ -73,7 +73,7 @@ export default async function ShowcaseProduct({ params }: { params: Promise<{ sl
             </div>
           )}
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <Link href={`/v/${s.slug}/cadastro`} className={buttonClass("primary", "lg")}>
+            <Link href={`/v/${s.slug}/cadastro#cadastro`} className={buttonClass("primary", "lg")}>
               Quero revender este produto
             </Link>
             {wa && (

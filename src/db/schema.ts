@@ -87,6 +87,8 @@ export const suppliers = pgTable("suppliers", {
   adminNotes: text("admin_notes"),
   orderSeq: integer("order_seq").notNull().default(0),
   importerEnabled: boolean("importer_enabled").notNull().default(false),
+  /** Conteudo editavel da landing page de cadastro de revendedores */
+  landing: jsonb("landing").$type<Record<string, unknown>>(),
   importTokenHash: text("import_token_hash"),
   importTokenCreatedAt: timestamp("import_token_created_at", { withTimezone: true }),
   createdAt: createdAt(),

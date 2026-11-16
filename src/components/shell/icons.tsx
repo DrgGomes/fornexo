@@ -8,6 +8,7 @@ import {
   DownloadCloud,
   ChartColumn,
   Heart,
+  PanelsTopLeft,
   House,
   LayoutDashboard,
   MessageCircle,
@@ -42,6 +43,7 @@ export const ICONS = {
   bell: Bell,
   suppliers: Building2,
   imports: DownloadCloud,
+  landing: PanelsTopLeft,
 } as const;
 
 export type IconKey = keyof typeof ICONS;

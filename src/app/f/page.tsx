@@ -69,7 +69,7 @@ export default async function SupplierHome() {
   const checklist = [
     { done: productCount[0].n > 0, label: "Cadastre o primeiro produto", href: "/f/produtos/novo" },
     { done: !!supplier.pixKey, label: "Configure sua chave PIX para receber", href: "/f/configuracoes?tab=pagamento" },
-    { done: !!supplier.logoUrl || !!supplier.description, label: "Personalize sua vitrine", href: "/f/configuracoes?tab=vitrine" },
+    { done: !!supplier.landing || !!supplier.logoUrl, label: "Personalize sua página de cadastro", href: "/f/minha-pagina" },
     { done: resellerCount[0].n > 0, label: "Convide seu primeiro revendedor", href: "/f/revendedores" },
   ];
   const pendingSteps = checklist.filter((c) => !c.done).length;
