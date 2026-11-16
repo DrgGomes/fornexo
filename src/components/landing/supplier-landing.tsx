@@ -31,7 +31,9 @@ export function SupplierLanding({
   productCount,
   categories,
   products,
+  base,
 }: {
+  base: string;
   supplier: SupplierRow;
   config: LandingConfig;
   productCount: number;
@@ -137,7 +139,7 @@ export function SupplierLanding({
               {categories.map((cat) => (
                 <Link
                   key={cat.id}
-                  href={`/v/${s.slug}/catalogo?cat=${cat.id}`}
+                  href={`${base}/catalogo?cat=${cat.id}`}
                   className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[15px] font-medium ring-1 ring-zinc-200 transition hover:ring-brand"
                 >
                   {cat.name}
@@ -155,7 +157,7 @@ export function SupplierLanding({
           <Section eyebrow="Prévia" title={c.productsTitle || "Alguns produtos do catálogo"} className="pb-14 sm:pb-16">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {products.map((p) => (
-                <Link key={p.id} href={`/v/${s.slug}/p/${p.id}`} className="group overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200/70 transition hover:-translate-y-0.5 hover:shadow-lg">
+                <Link key={p.id} href={`${base}/p/${p.id}`} className="group overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200/70 transition hover:-translate-y-0.5 hover:shadow-lg">
                   <div className="aspect-square overflow-hidden bg-zinc-100">
                     <SmartImg src={p.image} alt={p.name} size={280} className="size-full object-cover transition duration-300 group-hover:scale-[1.04]" />
                   </div>
@@ -172,7 +174,7 @@ export function SupplierLanding({
               ))}
             </div>
             <div className="mt-8 text-center">
-              <Link href={`/v/${s.slug}/catalogo`} className={buttonClass("secondary", "lg")}>
+              <Link href={`${base}/catalogo`} className={buttonClass("secondary", "lg")}>
                 Ver catálogo completo <ArrowRight />
               </Link>
             </div>

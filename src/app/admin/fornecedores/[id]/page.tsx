@@ -21,7 +21,7 @@ export default async function AdminSupplierPage({ params }: { params: Promise<{ 
   ]);
   return (
     <>
-      <PageHeader title={s.name} description={`Criado em ${formatDate(s.createdAt)} · /v/${s.slug}`} back="/admin/fornecedores" />
+      <PageHeader title={s.name} description={`Criado em ${formatDate(s.createdAt)} · /v/${s.slug}${s.customDomain ? ` · ${s.customDomain}` : ""}`} back="/admin/fornecedores" />
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard label="Pedidos" value={o.n} hint={brl(Number(o.total ?? 0))} />
         <StatCard label="Revendedores" value={r.n} />
@@ -40,6 +40,7 @@ export default async function AdminSupplierPage({ params }: { params: Promise<{ 
                 paidUntil: s.paidUntil ? spDateKey(s.paidUntil) : null,
                 adminNotes: s.adminNotes ?? "",
                 importerEnabled: s.importerEnabled,
+                customDomainEnabled: s.customDomainEnabled,
               }}
             />
           </CardBody>

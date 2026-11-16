@@ -1,3 +1,4 @@
+import { showcaseBase } from "@/lib/showcase-base";
 import Link from "next/link";
 import { SmartImg } from "@/components/ui/smart-img";
 import { and, count, eq } from "drizzle-orm";
@@ -19,6 +20,7 @@ export default async function ShowcaseCatalogPage({ params, searchParams }: { pa
   const sp = await searchParams;
   const s = await getShowcaseSupplier(slug);
   if (!s) notFound();
+  const base = await showcaseBase(s.slug);
   if (!s.showcasePublic) {
     return (
       <>
@@ -26,7 +28,7 @@ export default async function ShowcaseCatalogPage({ params, searchParams }: { pa
           <Lock className="mx-auto size-6 text-zinc-400" />
           <p className="mt-3 font-semibold">Catálogo exclusivo para revendedores</p>
           <p className="mt-1 text-sm text-zinc-500">Cadastre-se para ver todos os produtos e preços.</p>
-          <Link href={`/v/${s.slug}/cadastro#cadastro`} className={buttonClass("primary", "md", "mt-5")}>
+          <Link href={`${base}/cadastro#cadastro`} className={buttonClass("primary", "md", "mt-5")}>
             Quero revender
           </Link>
         </div>
@@ -51,7 +53,7 @@ export default async function ShowcaseCatalogPage({ params, searchParams }: { pa
         <CatalogFilters categories={data.categories} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {data.items.map((p) => (
-            <Link key={p.id} href={`/v/${s.slug}/p/${p.id}`} className="group overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200/70 transition hover:shadow-md">
+            <Link key={p.id} href={`${base}/p/${p.id}`} className="group overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200/70 transition hover:shadow-md">
               <div className="aspect-square overflow-hidden bg-zinc-100">
                 {p.image && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -78,7 +80,7 @@ export default async function ShowcaseCatalogPage({ params, searchParams }: { pa
           makeHref={(pg) => {
             const q = new URLSearchParams(Object.entries(sp).filter(([, v]) => v) as [string, string][]);
             q.set("page", String(pg));
-            return `/v/${s.slug}/catalogo?${q.toString()}`;
+            return `${base}/catalogo?${q.toString()}`;
           }}
         />
       </section>

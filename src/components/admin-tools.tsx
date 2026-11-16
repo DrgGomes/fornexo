@@ -63,7 +63,7 @@ export function AdminSupplierForm({
   initial,
 }: {
   id: string;
-  initial: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string; importerEnabled: boolean };
+  initial: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string; importerEnabled: boolean; customDomainEnabled: boolean };
 }) {
   const [v, setV] = useState(initial);
   const { exec, pending } = useAction();
@@ -109,6 +109,13 @@ export function AdminSupplierForm({
           onChange={(x) => setV({ ...v, importerEnabled: x })}
           label="Importador de anúncios (extensão)"
           description="Libera a extensão que copia anúncios do Mercado Livre, Shopee, TikTok Shop e Temu e o menu Importados"
+        />
+        <div className="my-3 border-t border-zinc-200" />
+        <Switch
+          checked={v.customDomainEnabled}
+          onChange={(x) => setV({ ...v, customDomainEnabled: x })}
+          label="Domínio próprio"
+          description="O fornecedor pode ligar o domínio dele (ex: revenda.loja.com.br) à página de revenda, catálogo e portal. Ao desligar, o domínio é desconectado."
         />
       </div>
       <Field label="Anotações internas">

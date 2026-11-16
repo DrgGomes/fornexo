@@ -8,10 +8,12 @@ import { hashPassword, requireAdmin } from "@/lib/auth";
 import { TRIAL_DAYS } from "@/lib/constants";
 import { seedDemo } from "@/lib/seed";
 import { slugify } from "@/lib/utils";
+import { forgetDomain } from "@/lib/domain-lookup";
+import { domainsConfigured, removeDomain } from "@/lib/vercel-domains";
 
 export async function adminUpdateSupplier(
   id: string,
-  input: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string; importerEnabled: boolean },
+  input: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string; importerEnabled: boolean; customDomainEnabled: boolean },
 ) {
   return run(async () => {
     await requireAdmin();
@@ -23,6 +25,7 @@ export async function adminUpdateSupplier(
         paidUntil: z.string().nullable(),
         adminNotes: z.string().max(5000),
         importerEnabled: z.boolean(),
+        customDomainEnabled: z.boolean(),
       })
       .parse(input);
     const toDate = (s: string | null) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T23:59:59-03:00`) : null);
@@ -35,10 +38,19 @@ export async function adminUpdateSupplier(
         paidUntil: toDate(d.paidUntil),
         adminNotes: d.adminNotes || null,
         importerEnabled: d.importerEnabled,
+        customDomainEnabled: d.customDomainEnabled,
         // ao desligar, invalida a conexao da extensao
         ...(d.importerEnabled ? {} : { importTokenHash: null, importTokenCreatedAt: null }),
       })
       .where(eq(suppliers.id, id));
+    if (!d.customDomainEnabled) {
+      const [row] = await db.select({ customDomain: suppliers.customDomain }).from(suppliers).where(eq(suppliers.id, id));
+      if (row?.customDomain) {
+        if (domainsConfigured()) await removeDomain(row.customDomain);
+        forgetDomain(row.customDomain);
+        await db.update(suppliers).set({ customDomain: null, customDomainStatus: null }).where(eq(suppliers.id, id));
+      }
+    }
   }, "Fornecedor atualizado");
 }
 

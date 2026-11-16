@@ -1,3 +1,4 @@
+import { publicLandingUrl } from "@/lib/showcase-base";
 import Link from "next/link";
 import { and, count, desc, eq, gte, ne, sql, sum } from "drizzle-orm";
 import { AlertTriangle, ArrowRight, CircleCheck, Circle, Package, ReceiptText, TrendingUp, Wallet } from "lucide-react";
@@ -64,7 +65,7 @@ export default async function SupplierHome() {
   const monthTotal = Number(monthAgg[0].total ?? 0);
   const monthOrders = monthAgg[0].n;
   const profit = monthTotal - Number(monthAgg[0].cost ?? 0);
-  const signupLink = `${origin}/v/${supplier.slug}/cadastro`;
+  const signupLink = publicLandingUrl(supplier, origin);
 
   const checklist = [
     { done: productCount[0].n > 0, label: "Cadastre o primeiro produto", href: "/f/produtos/novo" },

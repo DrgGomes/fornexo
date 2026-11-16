@@ -1,3 +1,4 @@
+import { showcaseBase } from "@/lib/showcase-base";
 import { notFound } from "next/navigation";
 import { SupplierLanding } from "@/components/landing/supplier-landing";
 import { loadLanding } from "@/lib/landing-data";
@@ -10,5 +11,5 @@ export default async function SupplierSignupLanding({ params }: { params: Promis
   const s = await getShowcaseSupplier(slug);
   if (!s) notFound();
   const data = await loadLanding(s);
-  return <SupplierLanding supplier={s} {...data} />;
+  return <SupplierLanding supplier={s} base={await showcaseBase(s.slug)} {...data} />;
 }

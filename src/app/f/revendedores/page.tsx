@@ -1,3 +1,4 @@
+import { publicLandingUrl } from "@/lib/showcase-base";
 import Link from "next/link";
 import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { Users } from "lucide-react";
@@ -45,7 +46,7 @@ export default async function ResellersPage({ searchParams }: { searchParams: Pr
     baseUrl(),
   ]);
   const c = Object.fromEntries(counts.map((x) => [x.status, x.n]));
-  const link = `${origin}/v/${supplier.slug}/cadastro`;
+  const link = publicLandingUrl(supplier, origin);
 
   return (
     <>

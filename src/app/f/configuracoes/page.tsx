@@ -6,6 +6,10 @@ import { db, users } from "@/db";
 import { requireSupplier } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { baseUrl } from "@/lib/url";
+import { DomainSettings } from "@/components/supplier/domain-settings";
+import { suppliers } from "@/db";
+import { forgetDomain } from "@/lib/domain-lookup";
+import { checkDomain, domainsConfigured } from "@/lib/vercel-domains";
 
 export const metadata = { title: "Configurações" };
 
@@ -14,6 +18,7 @@ const TABS = [
   { id: "vitrine", label: "Vitrine e marca" },
   { id: "regras", label: "Regras" },
   { id: "pagamento", label: "PIX" },
+  { id: "dominio", label: "Domínio" },
   { id: "equipe", label: "Equipe" },
   { id: "plano", label: "Plano" },
   { id: "senha", label: "Senha" },
@@ -28,6 +33,20 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       ? await db.select().from(users).where(eq(users.supplierId, s.id)).orderBy(asc(users.createdAt))
       : [];
   const origin = await baseUrl();
+  let verification: { type: string; name: string; value: string }[] = [];
+  let domainStatus = s.customDomainStatus;
+  if (tab === "dominio" && s.customDomainEnabled && s.customDomain && domainsConfigured()) {
+    const c = await checkDomain(s.customDomain).catch(() => null);
+    if (c) {
+      verification = c.verification.map((v) => ({ type: v.type, name: v.domain, value: v.value }));
+      const next = c.verified && c.configured ? "ACTIVE" : "PENDING";
+      if (next !== domainStatus) {
+        domainStatus = next;
+        await db.update(suppliers).set({ customDomainStatus: next }).where(eq(suppliers.id, s.id));
+        forgetDomain(s.customDomain);
+      }
+    }
+  }
   return (
     <>
       <PageHeader title="Configurações" />
@@ -56,6 +75,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <RulesForm initial={{ handlingFee: s.handlingFee, autoApproveResellers: s.autoApproveResellers, requireLabel: s.requireLabel, shippingDeadline: s.shippingDeadline ?? "" }} />
         )}
         {tab === "pagamento" && <PaymentForm initial={{ pixKey: s.pixKey ?? "", pixHolder: s.pixHolder ?? "", pixCity: s.pixCity ?? "" }} />}
+        {tab === "dominio" && (
+          <DomainSettings
+            enabled={s.customDomainEnabled}
+            ready={domainsConfigured()}
+            domain={s.customDomain}
+            status={domainStatus}
+            apex={s.customDomainApex}
+            verification={verification}
+            fallbackUrl={`${origin}/v/${s.slug}/cadastro`}
+          />
+        )}
         {tab === "equipe" && (
           <TeamForm meId={user.id} members={team.map((m) => ({ id: m.id, name: m.name, email: m.email, active: m.active, lastLoginAt: m.lastLoginAt?.toISOString() ?? null }))} />
         )}

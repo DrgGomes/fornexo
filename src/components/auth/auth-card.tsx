@@ -1,18 +1,43 @@
 import Link from "next/link";
 
-export function AuthLayout({ children, side }: { children: React.ReactNode; side?: React.ReactNode }) {
+export type AuthBrand = { name: string; logoUrl: string | null; color: string; description?: string | null };
+
+export function AuthLayout({ children, side, brand }: { children: React.ReactNode; side?: React.ReactNode; brand?: AuthBrand | null }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[1fr_1.05fr]">
+    <div className="grid min-h-dvh lg:grid-cols-[1fr_1.05fr]" style={brand ? ({ "--brand": brand.color } as React.CSSProperties) : undefined}>
       <div className="flex flex-col px-5 py-6 sm:px-10">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-zinc-900 text-sm font-bold text-white">F</span>
-          <span className="text-[15px] font-semibold tracking-tight">Fornexo</span>
+          {brand ? (
+            brand.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logoUrl} alt={brand.name} className="size-8 rounded-lg object-cover" />
+            ) : (
+              <span className="flex size-8 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ background: brand.color }}>
+                {brand.name.charAt(0).toUpperCase()}
+              </span>
+            )
+          ) : (
+            <span className="flex size-8 items-center justify-center rounded-lg bg-zinc-900 text-sm font-bold text-white">F</span>
+          )}
+          <span className="text-[15px] font-semibold tracking-tight">{brand ? brand.name : "Fornexo"}</span>
         </Link>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">{children}</div>
       </div>
       <div className="relative hidden overflow-hidden bg-zinc-950 lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_70%_20%,rgba(99,102,241,0.45),transparent),radial-gradient(50%_40%_at_20%_90%,rgba(16,185,129,0.25),transparent)]" />
-        <div className="relative flex h-full flex-col justify-end p-12 text-white">{side ?? <DefaultSide />}</div>
+        {brand && <div className="absolute inset-0 opacity-60" style={{ background: `radial-gradient(60% 50% at 70% 20%, ${brand.color}, transparent)` }} />}
+        <div className="relative flex h-full flex-col justify-end p-12 text-white">
+          {side ??
+            (brand ? (
+              <div className="max-w-md">
+                <p className="text-sm font-medium text-white/70">Portal do revendedor</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight">{brand.name}</h2>
+                {brand.description && <p className="mt-4 text-[15px] leading-relaxed text-zinc-300">{brand.description}</p>}
+              </div>
+            ) : (
+              <DefaultSide />
+            ))}
+        </div>
       </div>
     </div>
   );

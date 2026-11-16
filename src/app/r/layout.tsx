@@ -7,6 +7,11 @@ import { contrastText, safeColor } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata() {
+  const { supplier } = await requireReseller();
+  return { title: { default: supplier.name, template: `%s | ${supplier.name}` }, applicationName: supplier.name };
+}
+
 export default async function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, reseller, supplier } = await requireReseller();
   const c = await resellerCounts(reseller.id, supplier.id, reseller.newsSeenAt);

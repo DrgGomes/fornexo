@@ -89,6 +89,10 @@ export const suppliers = pgTable("suppliers", {
   importerEnabled: boolean("importer_enabled").notNull().default(false),
   /** Conteudo editavel da landing page de cadastro de revendedores */
   landing: jsonb("landing").$type<Record<string, unknown>>(),
+  customDomainEnabled: boolean("custom_domain_enabled").notNull().default(false),
+  customDomain: text("custom_domain").unique(),
+  customDomainStatus: text("custom_domain_status").$type<"PENDING" | "ACTIVE">(),
+  customDomainApex: boolean("custom_domain_apex").notNull().default(false),
   importTokenHash: text("import_token_hash"),
   importTokenCreatedAt: timestamp("import_token_created_at", { withTimezone: true }),
   createdAt: createdAt(),

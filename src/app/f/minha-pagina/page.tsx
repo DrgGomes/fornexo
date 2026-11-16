@@ -1,3 +1,4 @@
+import { publicLandingUrl } from "@/lib/showcase-base";
 import { LandingEditor } from "@/components/supplier/landing-editor";
 import { PageHeader } from "@/components/ui/misc";
 import { requireSupplier } from "@/lib/auth";
@@ -15,7 +16,7 @@ export default async function MyLandingPage() {
       <LandingEditor
         initial={resolveLanding(s)}
         brand={{ logoUrl: s.logoUrl ?? "", bannerUrl: s.bannerUrl ?? "", primaryColor: s.primaryColor, whatsapp: s.whatsapp ?? "" }}
-        landingUrl={`${origin}/v/${s.slug}/cadastro`}
+        landingUrl={publicLandingUrl(s, origin)}
         previewPath={`/v/${s.slug}/cadastro`}
         autoRules={autoRules(s)}
       />

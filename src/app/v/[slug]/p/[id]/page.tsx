@@ -1,3 +1,4 @@
+import { showcaseBase } from "@/lib/showcase-base";
 import Link from "next/link";
 import { SmartImg } from "@/components/ui/smart-img";
 import { and, asc, eq } from "drizzle-orm";
@@ -21,6 +22,7 @@ export default async function ShowcaseProduct({ params }: { params: Promise<{ sl
   const { slug, id } = await params;
   const s = await getShowcaseSupplier(slug);
   if (!s || !s.showcasePublic) notFound();
+  const base = await showcaseBase(s.slug);
   const p = await db.query.products.findFirst({
     where: and(eq(products.id, id), eq(products.supplierId, s.id), eq(products.status, "ACTIVE")),
     with: { variants: { orderBy: asc(variants.position) } },
@@ -30,7 +32,7 @@ export default async function ShowcaseProduct({ params }: { params: Promise<{ sl
   const wa = whatsappLink(s.whatsapp, `Olá! Tenho interesse em revender o produto ${p.name}.`);
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-      <Link href={`/v/${s.slug}`} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900">
+      <Link href={base || "/"} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900">
         <ChevronLeft className="size-4" /> Catálogo
       </Link>
       <div className="grid gap-8 lg:grid-cols-2">
@@ -73,7 +75,7 @@ export default async function ShowcaseProduct({ params }: { params: Promise<{ sl
             </div>
           )}
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <Link href={`/v/${s.slug}/cadastro#cadastro`} className={buttonClass("primary", "lg")}>
+            <Link href={`${base}/cadastro#cadastro`} className={buttonClass("primary", "lg")}>
               Quero revender este produto
             </Link>
             {wa && (
