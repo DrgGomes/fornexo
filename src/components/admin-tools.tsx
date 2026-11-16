@@ -7,6 +7,7 @@ import { adminCreateSupplier, adminSeedDemo, adminUpdateSupplier } from "@/actio
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { Switch } from "@/components/ui/switch";
 import { useAction } from "@/components/ui/use-action";
 
 export function AdminCreateSupplier() {
@@ -62,7 +63,7 @@ export function AdminSupplierForm({
   initial,
 }: {
   id: string;
-  initial: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string };
+  initial: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string; importerEnabled: boolean };
 }) {
   const [v, setV] = useState(initial);
   const { exec, pending } = useAction();
@@ -101,6 +102,14 @@ export function AdminSupplierForm({
         <Button size="sm" variant="secondary" onClick={() => addDays(365)}>
           +1 ano
         </Button>
+      </div>
+      <div className="rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-100">
+        <Switch
+          checked={v.importerEnabled}
+          onChange={(x) => setV({ ...v, importerEnabled: x })}
+          label="Importador de anúncios (extensão)"
+          description="Libera a extensão que copia anúncios do Mercado Livre, Shopee, TikTok Shop e Temu e o menu Importados"
+        />
       </div>
       <Field label="Anotações internas">
         <Textarea value={v.adminNotes} onChange={(e) => setV({ ...v, adminNotes: e.target.value })} />

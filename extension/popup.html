@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Fornexo Importador</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;width:360px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#18181b;background:#fafafa}
+  body.tab{width:auto;max-width:520px;margin:40px auto}
+  header{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid #e4e4e7;background:#fff}
+  .logo{width:32px;height:32px;border-radius:10px;background:#18181b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+  h1{font-size:15px;margin:0}
+  p.sub{margin:0;font-size:12px;color:#71717a}
+  main{padding:16px;display:flex;flex-direction:column;gap:12px}
+  .status{padding:12px;border-radius:12px;font-size:13px;line-height:1.4;background:#f4f4f5}
+  .status.ok{background:#ecfdf5;color:#065f46}.status.err{background:#fef2f2;color:#991b1b}
+  label{font-size:12px;font-weight:600;color:#3f3f46;display:block;margin-bottom:4px}
+  input{width:100%;height:38px;border-radius:10px;border:1px solid #d4d4d8;padding:0 10px;font-size:13px;font-family:ui-monospace,monospace}
+  button{height:40px;border:0;border-radius:10px;background:#18181b;color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+  button.sec{background:#fff;color:#18181b;border:1px solid #d4d4d8}
+  ol{margin:0;padding-left:18px;font-size:12.5px;color:#52525b;line-height:1.6}
+  details summary{cursor:pointer;font-size:12.5px;color:#52525b}
+</style>
+</head>
+<body>
+<header><span class="logo">F</span><div><h1>Fornexo Importador</h1><p class="sub">Mercado Livre, Shopee, TikTok Shop e Temu</p></div></header>
+<main>
+  <div id="status" class="status">Verificando conexão...</div>
+  <ol>
+    <li>Abra um anúncio em um dos marketplaces.</li>
+    <li>Toque no botão <b>IMPORTAR</b> no canto da tela.</li>
+    <li>Revise e cadastre em <b>Importados</b> no painel.</li>
+  </ol>
+  <button id="open">Abrir Importados</button>
+  <details id="adv">
+    <summary>Conexão</summary>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+      <div><label for="server">Endereço do sistema</label><input id="server" placeholder="https://..." /></div>
+      <div><label for="token">Código de conexão</label><input id="token" placeholder="fxi_..." /></div>
+      <button id="save" class="sec">Salvar e testar</button>
+    </div>
+  </details>
+</main>
+<script src="config.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

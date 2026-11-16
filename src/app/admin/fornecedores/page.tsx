@@ -46,6 +46,7 @@ export default async function AdminSuppliers({ searchParams }: { searchParams: P
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
+                  {s.importerEnabled && <Badge tone="violet">Importador</Badge>}
                   {!acc.ok ? <Badge tone="red">{s.status === "BLOCKED" ? "Bloqueado" : "Vencido"}</Badge> : s.status === "TRIAL" ? <Badge tone="amber">Teste</Badge> : <Badge tone="emerald">Ativo</Badge>}
                   <span className="text-[11px] text-zinc-400">
                     {s.status === "TRIAL" ? `até ${formatDate(s.trialEndsAt)}` : s.paidUntil ? `pago até ${formatDate(s.paidUntil)}` : ""}

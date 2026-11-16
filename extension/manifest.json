@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Fornexo Importador",
+  "version": "1.0.0",
+  "description": "Importe anúncios do Mercado Livre, Shopee, TikTok Shop e Temu para o seu catálogo Fornexo com um clique.",
+  "permissions": ["storage"],
+  "host_permissions": ["__FX_SERVER__/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Fornexo Importador" },
+  "options_ui": { "page": "popup.html", "open_in_tab": true },
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.mercadolivre.com.br/*",
+        "https://*.mercadolibre.com/*",
+        "https://shopee.com.br/*",
+        "https://*.shopee.com.br/*",
+        "https://*.tiktok.com/*",
+        "https://*.temu.com/*"
+      ],
+      "js": ["config.js", "extractors.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

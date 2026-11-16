@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "6mb" },
   },
   serverExternalPackages: ["bcryptjs"],
+  // arquivos da extensao do Chrome, empacotados sob demanda em /api/extension
+  outputFileTracingIncludes: { "/api/extension": ["./extension/**/*"] },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -32,11 +32,11 @@ async function assertPublicUrl(raw: string) {
 }
 
 /** Busca uma URL externa bloqueando enderecos internos (SSRF), com limite de redirecionamentos e tempo. */
-export async function safeFetch(url: string, opts?: { timeoutMs?: number; maxRedirects?: number }) {
+export async function safeFetch(url: string, opts?: { timeoutMs?: number; maxRedirects?: number; headers?: Record<string, string> }) {
   let current = url;
   for (let i = 0; i <= (opts?.maxRedirects ?? 3); i++) {
     await assertPublicUrl(current);
-    const res = await fetch(current, { redirect: "manual", signal: AbortSignal.timeout(opts?.timeoutMs ?? 15000) });
+    const res = await fetch(current, { redirect: "manual", headers: opts?.headers, signal: AbortSignal.timeout(opts?.timeoutMs ?? 15000) });
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       current = new URL(res.headers.get("location")!, current).toString();
       continue;

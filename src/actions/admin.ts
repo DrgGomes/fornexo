@@ -11,7 +11,7 @@ import { slugify } from "@/lib/utils";
 
 export async function adminUpdateSupplier(
   id: string,
-  input: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string },
+  input: { status: "TRIAL" | "ACTIVE" | "BLOCKED"; plan: string; trialEndsAt: string | null; paidUntil: string | null; adminNotes: string; importerEnabled: boolean },
 ) {
   return run(async () => {
     await requireAdmin();
@@ -22,12 +22,22 @@ export async function adminUpdateSupplier(
         trialEndsAt: z.string().nullable(),
         paidUntil: z.string().nullable(),
         adminNotes: z.string().max(5000),
+        importerEnabled: z.boolean(),
       })
       .parse(input);
     const toDate = (s: string | null) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T23:59:59-03:00`) : null);
     await db
       .update(suppliers)
-      .set({ status: d.status, plan: d.plan, trialEndsAt: toDate(d.trialEndsAt), paidUntil: toDate(d.paidUntil), adminNotes: d.adminNotes || null })
+      .set({
+        status: d.status,
+        plan: d.plan,
+        trialEndsAt: toDate(d.trialEndsAt),
+        paidUntil: toDate(d.paidUntil),
+        adminNotes: d.adminNotes || null,
+        importerEnabled: d.importerEnabled,
+        // ao desligar, invalida a conexao da extensao
+        ...(d.importerEnabled ? {} : { importTokenHash: null, importTokenCreatedAt: null }),
+      })
       .where(eq(suppliers.id, id));
   }, "Fornecedor atualizado");
 }

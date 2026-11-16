@@ -12,7 +12,8 @@ export const supplierCounts = cache(async (supplierId: string) => {
       (select count(*) from returns where supplier_id = ${supplierId} and status = 'REQUESTED') as pending_returns,
       (select count(*) from messages where supplier_id = ${supplierId} and from_supplier = false and read_at is null) as unread_msgs,
       (select count(*) from resellers where supplier_id = ${supplierId} and status = 'PENDING') as pending_resellers,
-      (select count(*) from notifications where supplier_id = ${supplierId} and to_supplier = true and read_at is null) as unread`);
+      (select count(*) from notifications where supplier_id = ${supplierId} and to_supplier = true and read_at is null) as unread,
+      (select count(*) from imported_products where supplier_id = ${supplierId} and status = 'PENDING') as pending_imports`);
   const x = r.rows[0];
   return {
     toProcess: Number(x.to_process),
@@ -21,6 +22,7 @@ export const supplierCounts = cache(async (supplierId: string) => {
     unreadMsgs: Number(x.unread_msgs),
     pendingResellers: Number(x.pending_resellers),
     unread: Number(x.unread),
+    pendingImports: Number(x.pending_imports),
   };
 });
 

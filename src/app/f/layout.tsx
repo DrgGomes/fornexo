@@ -23,6 +23,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
       label: "Catálogo",
       items: [
         { href: "/f/produtos", label: "Produtos", icon: "products" },
+        ...(supplier.importerEnabled ? [{ href: "/f/importados", label: "Importados", icon: "imports" as const, badge: c.pendingImports }] : []),
         { href: "/f/estoque", label: "Estoque", icon: "stock" },
       ],
     },

@@ -39,6 +39,7 @@ export default async function AdminSupplierPage({ params }: { params: Promise<{ 
                 trialEndsAt: s.trialEndsAt ? spDateKey(s.trialEndsAt) : null,
                 paidUntil: s.paidUntil ? spDateKey(s.paidUntil) : null,
                 adminNotes: s.adminNotes ?? "",
+                importerEnabled: s.importerEnabled,
               }}
             />
           </CardBody>

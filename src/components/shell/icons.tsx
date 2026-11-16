@@ -5,6 +5,7 @@ import {
   Boxes,
   Building2,
   Calculator,
+  DownloadCloud,
   ChartColumn,
   Heart,
   House,
@@ -40,6 +41,7 @@ export const ICONS = {
   heart: Heart,
   bell: Bell,
   suppliers: Building2,
+  imports: DownloadCloud,
 } as const;
 
 export type IconKey = keyof typeof ICONS;

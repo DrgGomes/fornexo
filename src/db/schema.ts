@@ -50,6 +50,7 @@ export const orderStatusEnum = pgEnum("order_status", [
 ]);
 export const returnStatusEnum = pgEnum("return_status", ["REQUESTED", "APPROVED", "REJECTED", "COMPLETED"]);
 export const txTypeEnum = pgEnum("tx_type", ["DEPOSIT", "ORDER_PAYMENT", "REFUND", "ADJUSTMENT"]);
+export const importStatusEnum = pgEnum("import_status", ["PENDING", "CONVERTED", "DISCARDED"]);
 export const depositStatusEnum = pgEnum("deposit_status", ["PENDING", "APPROVED", "REJECTED"]);
 
 export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
@@ -85,6 +86,9 @@ export const suppliers = pgTable("suppliers", {
   paidUntil: timestamp("paid_until", { withTimezone: true }),
   adminNotes: text("admin_notes"),
   orderSeq: integer("order_seq").notNull().default(0),
+  importerEnabled: boolean("importer_enabled").notNull().default(false),
+  importTokenHash: text("import_token_hash"),
+  importTokenCreatedAt: timestamp("import_token_created_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -481,6 +485,39 @@ export const notifications = pgTable(
   (t) => [
     index("notif_supplier_idx").on(t.supplierId, t.toSupplier, t.readAt),
     index("notif_reseller_idx").on(t.resellerId, t.readAt),
+  ],
+);
+
+export type ImportAttribute = { name: string; value: string };
+export type ImportVariation = { name: string; values: string[] };
+
+/** Anuncios capturados pela extensao (Mercado Livre, Shopee, TikTok, Temu) aguardando revisao. */
+export const importedProducts = pgTable(
+  "imported_products",
+  {
+    id: id(),
+    supplierId: text("supplier_id")
+      .notNull()
+      .references(() => suppliers.id, { onDelete: "cascade" }),
+    source: text("source").notNull(),
+    sourceUrl: text("source_url").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    price: integer("price"),
+    images: text("images").array().notNull().default([]),
+    attributes: jsonb("attributes").$type<ImportAttribute[]>().notNull().default([]),
+    variations: jsonb("variations").$type<ImportVariation[]>().notNull().default([]),
+    brand: text("brand"),
+    sku: text("sku"),
+    gtin: text("gtin"),
+    status: importStatusEnum("status").notNull().default("PENDING"),
+    productId: text("product_id").references(() => products.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("imported_supplier_url_uq").on(t.supplierId, t.sourceUrl),
+    index("imported_supplier_status_idx").on(t.supplierId, t.status, t.createdAt),
   ],
 );
 
