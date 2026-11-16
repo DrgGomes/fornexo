@@ -378,34 +378,120 @@
     };
   }
 
+  /* Temu: classes mudam a cada versao do site, entao lemos por estrutura e atributos */
+  var TEMU_IMG = /^https?:\/\/img\.kwcdn\.com\//i;
+  function temuImgUrl(img) {
+    var c = [img.getAttribute("data-src"), img.currentSrc, img.getAttribute("src")];
+    for (var i = 0; i < c.length; i++) {
+      if (c[i] && TEMU_IMG.test(c[i])) return c[i].split("?")[0];
+    }
+    var bg = img.parentElement && img.parentElement.style && img.parentElement.style.backgroundImage;
+    var m = (bg || "").match(/url\(["']?(.*?)["']?\)/);
+    return m && TEMU_IMG.test(m[1]) ? m[1].split("?")[0] : "";
+  }
+  function temuTitle(ld) {
+    var docTitle = document.title.replace(/\s*[|\-–]\s*Temu.*$/i, "").trim();
+    var cands = QA("span[aria-label],h1[aria-label],div[aria-label]").filter(function (el) {
+      var a = (el.getAttribute("aria-label") || "").trim();
+      return a.length >= 12 && a.length <= 300 && a === T(el) && !/R\$|\d+\s*(de|of)\s*\d+/i.test(a);
+    });
+    var best = null;
+    for (var i = 0; i < cands.length; i++) {
+      var a = cands[i].getAttribute("aria-label").trim();
+      if (docTitle && (docTitle.indexOf(a.slice(0, 25)) === 0 || a.indexOf(docTitle.slice(0, 25)) === 0)) return a;
+      if (!best) best = a;
+    }
+    return best || (ld && ld.name) || meta("og:title").replace(/\s*[|\-–]\s*Temu.*$/i, "") || docTitle || T(Q("h1"));
+  }
+  function temuGallery() {
+    var imgs = QA("img").filter(function (img) {
+      var lab = (img.getAttribute("aria-label") || "") + " " + (img.getAttribute("alt") || "");
+      return /(imagem|image|foto)\s*\d+\s*(de|of)\s*\d+/i.test(lab) || /detalhes\s*\d+$|details\s*\d+$/i.test((img.getAttribute("alt") || "").trim());
+    });
+    var urls = uniq(imgs.map(temuImgUrl).filter(Boolean));
+    return { imgs: imgs, urls: urls };
+  }
+  function temuHighlights() {
+    var lab = QA("span,div").find(function (el) {
+      return el.children.length === 0 && /^(destaques|highlights)$/i.test(T(el));
+    });
+    if (!lab) return [];
+    var box = lab;
+    for (var i = 0; i < 6 && box; i++) {
+      if (T(box).length > T(lab).length + 30) break;
+      box = box.parentElement;
+    }
+    if (!box) return [];
+    return uniq(
+      QA("div", box)
+        .filter(function (d) {
+          return !Q("div", d) && T(d).length > 10 && !/^(destaques|highlights)$/i.test(T(d));
+        })
+        .map(function (d) {
+          return T(d).replace(/\s+/g, " ").replace(/\s+,/g, ",");
+        }),
+    );
+  }
+  function temuFormat(txt) {
+    return txt
+      .replace(/\s+/g, " ")
+      .replace(/\s*(Benef[ií]cios|Caracter[ií]sticas:|Marca:|Material:|Composi[cç][aã]o:|Tabela de Medidas|Medidas:|Cor:|Tamanho:|Conte[uú]do da embalagem)/gi, "\n$1")
+      .replace(/\s+((?:PP|P|M|G|GG|XG|XGG|G\d|\d{2})\s+[—–-]\s+)/g, "\n$1")
+      .trim();
+  }
+
   function temu() {
     var ld = jsonLdProduct();
-    var re = /kwcdn\.com/;
-    var exclude = /avatar|icon|logo|badge|\/upload_aimg\/(?:temu|pho)\//i;
-    var titleEl = Q("h1");
-    var title = T(titleEl) || (ld && ld.name) || meta("og:title") || document.title.replace(/\s*[|-]\s*Temu.*$/i, "");
-    var anchor = titleEl || findByText(title);
-    var root = briefing(anchor, re);
-    var images = uniq(
-      imgUrls(root, re, exclude)
-        .map(function (u) {
-          return u.split("?")[0];
-        })
-        .concat(ldImages(ld)),
-    );
-    var price = ldPrice(ld) || priceFromText(root);
-    var description = sectionText(/^(descri[cç][aã]o|detalhes do produto|product details|description)$/i) || (ld && ld.description) || meta("og:description");
+    var title = temuTitle(ld);
+    var gal = temuGallery();
+    var images = gal.urls;
+    if (images.length === 0) {
+      var anchor = findByText(title) || Q("h1");
+      images = uniq(
+        imgUrls(briefing(anchor, TEMU_IMG), TEMU_IMG, /avatar|icon|logo|badge/i)
+          .map(function (u) {
+            return u.split("?")[0];
+          })
+          .concat(ldImages(ld).filter(function (u) {
+            return TEMU_IMG.test(u);
+          })),
+      );
+    }
+    // descricao: bloco de texto que fica junto das fotos de detalhes do anuncio
+    var description = "";
+    if (gal.imgs.length) {
+      // sobe a partir da ultima foto de detalhes ate antes de englobar titulo/destaques/recomendados
+      var stopEl = findByText(title);
+      var hlLab = QA("span,div").find(function (el) {
+        return el.children.length === 0 && /^(destaques|highlights)$/i.test(T(el));
+      });
+      var box = gal.imgs[gal.imgs.length - 1];
+      while (box.parentElement && box.parentElement !== document.body) {
+        var up = box.parentElement;
+        if ((stopEl && up.contains(stopEl)) || (hlLab && up.contains(hlLab)) || /voc[eê] tamb[eé]m pode gostar|recomendad|you may also like/i.test(T(up))) break;
+        box = up;
+      }
+      var txt = T(box).replace(/^\s*(detalhes do produto|descri[cç][aã]o( do produto)?|product details)\s*/i, "");
+      if (txt.length >= 20 && txt.length < 8000) description = temuFormat(txt);
+    }
+    if (!description) description = sectionText(/^(descri[cç][aã]o|detalhes do produto|product details|description)$/i) || (ld && ld.description) || meta("og:description");
+    var hl = temuHighlights();
+    if (hl.length) description = (description ? description + "\n\n" : "") + "Destaques:\n" + hl.map(function (h) {
+      return "- " + h;
+    }).join("\n");
+    var titleEl = findByText(title);
+    var root = briefing(titleEl, TEMU_IMG);
     var attributes = pairsIn(sectionEl(/^(detalhes do produto|especifica[cç][oõ]es|product details|specifications)$/i));
     return {
       source: "TEMU",
       title: title,
-      price: price,
+      price: ldPrice(ld) || priceFromText(root),
       images: images,
       description: description,
       attributes: attributes,
       variations: variationsGeneric(root),
       brand: ldBrand(ld),
-      sku: (location.href.match(/-g-(\d+)\.html/) || [])[1] || "",
+      sku: (location.href.match(/-g-(\d+)\.html/) || location.href.match(/goods_id=(\d+)/) || [])[1] || "",
       gtin: "",
     };
   }
