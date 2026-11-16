@@ -72,3 +72,7 @@ export const DEFAULT_FEE_PROFILES = [
 export const TRIAL_DAYS = 14;
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 export const ACCEPTED_UPLOAD = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+
+export const MAX_LABEL_FILES = 5;
+export const MAX_LABELS_TOTAL_BYTES = 4 * 1024 * 1024;
+export const MERGE_PDF_URL = "https://www.ilovepdf.com/pt/juntar_pdf";

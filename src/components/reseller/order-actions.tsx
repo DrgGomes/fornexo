@@ -6,6 +6,7 @@ import { cancelOrderByReseller, payOrderWithBalance, replaceLabel } from "@/acti
 import { createReturn } from "@/actions/returns";
 import { Button } from "@/components/ui/button";
 import { FilePicker } from "@/components/ui/file-picker";
+import { LabelPicker } from "@/components/ui/label-picker";
 import { Field, Select, Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ProductThumb } from "@/components/ui/misc";
@@ -53,7 +54,7 @@ export function ResellerOrderTools({
   const { exec, pending } = useAction();
   const [modal, setModal] = useState<"cancel" | "label" | "return" | null>(null);
   const [reason, setReason] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [labelFiles, setLabelFiles] = useState<File[]>([]);
   const [rReason, setRReason] = useState(RETURN_REASONS[0]);
   const [details, setDetails] = useState("");
   const [qty, setQty] = useState<Record<string, number>>(() => Object.fromEntries(items.map((i) => [i.id, i.quantity])));
@@ -103,19 +104,19 @@ export function ResellerOrderTools({
           <Button
             className="w-full"
             loading={pending}
-            disabled={!file}
+            disabled={!labelFiles.length}
             onClick={() => {
               const fd = new FormData();
               fd.set("orderId", id);
-              fd.set("file", file!);
-              exec(() => replaceLabel(fd), { onSuccess: () => (close(), setFile(null)) });
+              labelFiles.forEach((f) => fd.append("file", f));
+              exec(() => replaceLabel(fd), { onSuccess: () => (close(), setLabelFiles([])) });
             }}
           >
             Enviar etiqueta
           </Button>
         }
       >
-        <FilePicker file={file} onChange={setFile} label="Selecionar etiqueta" />
+        <LabelPicker files={labelFiles} onChange={setLabelFiles} />
       </Modal>
 
       <Modal

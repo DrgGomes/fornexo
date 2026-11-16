@@ -6,10 +6,9 @@ import { CircleCheck, CircleAlert, Minus, Plus, Search, Trash2 } from "lucide-re
 import { toast } from "sonner";
 import { createOrder, searchProductsForOrder, type OrderProductOption } from "@/actions/reseller";
 import { Button } from "@/components/ui/button";
-import { FilePicker } from "@/components/ui/file-picker";
-import { Field, Input, Textarea, fieldBase } from "@/components/ui/input";
+import { Field, Textarea, fieldBase } from "@/components/ui/input";
+import { LabelPicker } from "@/components/ui/label-picker";
 import { ProductThumb } from "@/components/ui/misc";
-import { MARKETPLACES } from "@/lib/constants";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -43,11 +42,8 @@ export function OrderForm({
   const [q, setQ] = useState("");
   const [results, setResults] = useState<OrderProductOption[]>([]);
   const [searching, setSearching] = useState(false);
-  const [marketplace, setMarketplace] = useState(myMarketplaces[0] ?? "SHOPEE");
-  const [ext, setExt] = useState("");
-  const [customer, setCustomer] = useState("");
   const [notes, setNotes] = useState("");
-  const [label, setLabel] = useState<File | null>(null);
+  const [labels, setLabels] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,24 +74,21 @@ export function OrderForm({
   const subtotal = lines.reduce((s, l) => s + l.price * l.quantity, 0);
   const total = subtotal + (lines.length ? handlingFee : 0);
   const enough = balance >= total;
-  const orderedMkts = [...MARKETPLACES].sort((a, b) => Number(myMarketplaces.includes(b.id)) - Number(myMarketplaces.includes(a.id)));
 
   async function submit() {
     if (!lines.length) return toast.error("Adicione ao menos um produto");
-    if (requireLabel && !label) return toast.error("Anexe a etiqueta de envio");
+    if (requireLabel && !labels.length) return toast.error("Anexe a etiqueta de envio");
     setSending(true);
     const fd = new FormData();
     fd.set(
       "payload",
       JSON.stringify({
         lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
-        marketplace,
-        externalOrderId: ext,
-        customerName: customer,
+        marketplace: myMarketplaces[0] ?? "OUTRO",
         notes,
       }),
     );
-    if (label) fd.set("label", label);
+    labels.forEach((f) => fd.append("label", f));
     const res = await createOrder(fd);
     setSending(false);
     if (!res.ok) return toast.error(res.error);
@@ -211,34 +204,8 @@ export function OrderForm({
 
       {/* Venda */}
       <section className="grid gap-4">
-        <div>
-          <p className="mb-2 text-[13px] font-semibold text-zinc-700">Onde você vendeu</p>
-          <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-            {orderedMkts.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setMarketplace(m.id)}
-                className={cn(
-                  "h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium ring-1 transition",
-                  marketplace === m.id ? "bg-brand text-brand-fg ring-brand" : "bg-white text-zinc-600 ring-zinc-200",
-                )}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nº do pedido no marketplace">
-            <Input value={ext} onChange={(e) => setExt(e.target.value)} placeholder="Opcional" />
-          </Field>
-          <Field label="Nome do cliente">
-            <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Opcional" />
-          </Field>
-        </div>
         <Field label={`Etiqueta de envio${requireLabel ? "" : " (opcional)"}`} hint="Baixe a etiqueta no painel do marketplace e anexe aqui">
-          <FilePicker file={label} onChange={setLabel} label="Anexar etiqueta (PDF ou foto)" />
+          <LabelPicker files={labels} onChange={setLabels} />
         </Field>
         <Field label="Observação para o fornecedor">
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-16" placeholder="Opcional" />

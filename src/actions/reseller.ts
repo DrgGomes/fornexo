@@ -9,6 +9,7 @@ import { MARKETPLACES } from "@/lib/constants";
 import { brl, orderCode } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { cancelOrderTx, createOrderTx } from "@/lib/orders";
+import { saveLabels } from "@/lib/labels";
 import { saveUpload } from "@/lib/storage";
 import { tryPayOrder } from "@/lib/wallet";
 
@@ -65,7 +66,7 @@ export async function searchProductsForOrder(q: string) {
 
 const orderSchema = z.object({
   lines: z.array(z.object({ variantId: z.string(), quantity: z.number().int().min(1).max(10000) })).min(1, "Adicione ao menos um item"),
-  marketplace: z.enum(MARKETPLACES.map((m) => m.id) as [string, ...string[]]),
+  marketplace: z.enum(MARKETPLACES.map((m) => m.id) as [string, ...string[]]).catch("OUTRO"),
   externalOrderId: z.string().trim().max(80).optional(),
   customerName: z.string().trim().max(120).optional(),
   notes: z.string().trim().max(1000).optional(),
@@ -75,10 +76,8 @@ export async function createOrder(form: FormData) {
   return run(async () => {
     const { reseller, supplier, user } = await requireReseller();
     const d = orderSchema.parse(JSON.parse(String(form.get("payload") ?? "{}")));
-    const file = form.get("label");
-    const hasFile = file instanceof File && file.size > 0;
-    if (supplier.requireLabel && !hasFile) fail("Anexe a etiqueta de envio do marketplace.");
-    const labelFileId = hasFile ? await saveUpload(file as File, { supplierId: supplier.id, ownerResellerId: reseller.id, folder: "labels" }) : null;
+    const labelFileId = await saveLabels(form.getAll("label"), { supplierId: supplier.id, ownerResellerId: reseller.id });
+    if (supplier.requireLabel && !labelFileId) fail("Anexe a etiqueta de envio do marketplace.");
     return db.transaction((tx) =>
       createOrderTx(tx, {
         supplierId: supplier.id,
@@ -132,9 +131,8 @@ export async function replaceLabel(form: FormData) {
     const order = await db.query.orders.findFirst({ where: and(eq(orders.id, String(form.get("orderId"))), eq(orders.resellerId, reseller.id)) });
     if (!order) fail("Pedido não encontrado.");
     if (!["AWAITING_PAYMENT", "CONFIRMED", "PICKING"].includes(order.status)) fail("O pedido já foi separado. Fale com o fornecedor pelo chat.");
-    const file = form.get("file");
-    if (!(file instanceof File)) fail("Selecione o arquivo.");
-    const fileId = await saveUpload(file, { supplierId: order.supplierId, ownerResellerId: reseller.id, folder: "labels" });
+    const fileId = await saveLabels(form.getAll("file"), { supplierId: order.supplierId, ownerResellerId: reseller.id });
+    if (!fileId) fail("Selecione a etiqueta.");
     await db.update(orders).set({ labelFileId: fileId }).where(eq(orders.id, order.id));
     await db.insert(orderEvents).values({ orderId: order.id, message: order.labelFileId ? "Etiqueta substituída" : "Etiqueta anexada", actorName: user.name });
     await notify({ supplierId: order.supplierId, toSupplier: true, title: `Etiqueta ${order.labelFileId ? "atualizada" : "anexada"} no pedido #${orderCode(order.number)}`, href: `/f/pedidos/${order.id}` });

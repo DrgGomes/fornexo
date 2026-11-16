@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { SmartImg } from "@/components/ui/smart-img";
 import { useRef, useState } from "react";
-import { Download, FileArchive, MessageCircle, Package, Share2, ShoppingBag } from "lucide-react";
+import { ChevronDown, Download, FileArchive, MessageCircle, Package, Share2, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { OrderProductOption } from "@/actions/reseller";
 import { Badge } from "@/components/ui/badge";
@@ -230,26 +230,7 @@ export function ProductWorkspace({
             </div>
           </div>
 
-          {p.hasVariants && (
-            <Card>
-              <CardHeader title="Variações" description={p.optionNames.join(" e ")} />
-              <div className="divide-y divide-zinc-100 border-t border-zinc-100">
-                {p.variants.map((v) => (
-                  <div key={v.id} className="flex items-center gap-3 px-5 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{v.name}</p>
-                      <p className="flex items-center gap-1 font-mono text-xs text-zinc-500">
-                        {v.sku}
-                        <CopyButton text={v.sku} compact className="size-6" toastMsg="SKU copiado" />
-                      </p>
-                    </div>
-                    <span className="text-sm tabular-nums">{brl(v.price)}</span>
-                    <span className={cn("w-16 text-right text-sm font-semibold tabular-nums", v.stock <= 0 ? "text-red-600" : "text-zinc-700")}>{v.stock > 0 ? `${v.stock} un` : "Esgot."}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+          {p.hasVariants && <VariantSummary p={p} />}
 
           <Card>
             <CardHeader title="Material para anunciar" description="Toque em copiar e cole no marketplace" />
@@ -289,5 +270,67 @@ export function ProductWorkspace({
         <OrderForm preset={preset} requireLabel={requireLabel} handlingFee={handlingFee} balance={balance} myMarketplaces={myMarketplaces} onDone={() => setOrderOpen(false)} />
       </Modal>
     </div>
+  );
+}
+
+function VariantSummary({ p }: { p: WorkspaceProduct }) {
+  const [open, setOpen] = useState(false);
+  const total = p.variants.reduce((s, v) => s + v.stock, 0);
+  const prices = p.variants.map((v) => v.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const groups = p.optionNames.map((name, i) => {
+    const map = new Map<string, number>();
+    for (const v of p.variants) {
+      const val = v.options[i];
+      if (val) map.set(val, (map.get(val) ?? 0) + v.stock);
+    }
+    return { name, values: [...map.entries()] };
+  });
+  return (
+    <Card>
+      <CardHeader title="Variações" description={`${p.variants.length} variações · ${total} un em estoque${min !== max ? ` · ${brl(min)} a ${brl(max)}` : ""}`} />
+      <CardBody className="flex flex-col gap-3.5 pt-0">
+        {groups.map((g) => (
+          <div key={g.name}>
+            <p className="mb-1.5 text-xs font-semibold text-zinc-500">
+              {g.name} <span className="font-normal">({g.values.length})</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {g.values.map(([val, st]) => (
+                <span
+                  key={val}
+                  className={cn("inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] ring-1", st > 0 ? "bg-white ring-zinc-200" : "bg-zinc-50 text-zinc-400 line-through ring-zinc-100")}
+                >
+                  {val}
+                  {st > 0 && <span className="text-[11px] text-zinc-500 tabular-nums">{st}</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={() => setOpen(!open)} className="inline-flex items-center gap-1 self-start text-[13px] font-medium text-zinc-600 hover:text-zinc-900">
+          <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
+          {open ? "Ocultar lista com SKU" : "Ver todas com SKU e estoque"}
+        </button>
+        {open && (
+          <div className="max-h-80 divide-y divide-zinc-100 overflow-y-auto rounded-xl ring-1 ring-zinc-200">
+            {p.variants.map((v) => (
+              <div key={v.id} className="flex items-center gap-3 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{v.name}</p>
+                  <p className="flex items-center gap-1 font-mono text-xs text-zinc-500">
+                    {v.sku}
+                    <CopyButton text={v.sku} compact className="size-6" toastMsg="SKU copiado" />
+                  </p>
+                </div>
+                {min !== max && <span className="text-sm tabular-nums">{brl(v.price)}</span>}
+                <span className={cn("w-14 text-right text-sm font-semibold tabular-nums", v.stock <= 0 ? "text-red-600" : "text-zinc-700")}>{v.stock > 0 ? `${v.stock} un` : "Esgot."}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }
